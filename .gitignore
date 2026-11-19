@@ -1,0 +1,15 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+# Konfigurasi & Cache Visual Studio
+.vs/
+*.user
+*.userossc
+*.suo
+*.cache
+
+# Folder Build (Bin/Obj)
+[Bb]in/
+[Oo]bj/
