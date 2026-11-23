@@ -502,14 +502,14 @@ Partial Class dashboard_dosen
         lblScoreCardTitle.ForeColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
         lblScoreCardTitle.Location = New Point(20, 16)
         lblScoreCardTitle.Name = "lblScoreCardTitle"
-        lblScoreCardTitle.Size = New Size(321, 25)
+        lblScoreCardTitle.Size = New Size(187, 25)
         lblScoreCardTitle.TabIndex = 0
-        lblScoreCardTitle.Text = "Indeks Kinerja Dosen (Fuzzy Tsukamoto)"
+        lblScoreCardTitle.Text = "Indeks Kinerja Dosen"
         ' 
         ' lblRataRataSkor
         ' 
         lblRataRataSkor.AutoSize = True
-        lblRataRataSkor.Font = New Font("Segoe UI", 28F, FontStyle.Bold)
+        lblRataRataSkor.Font = New Font("Segoe UI", 28.0F, FontStyle.Bold)
         lblRataRataSkor.ForeColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
         lblRataRataSkor.Location = New Point(16, 44)
         lblRataRataSkor.Name = "lblRataRataSkor"
@@ -520,11 +520,11 @@ Partial Class dashboard_dosen
         ' lblScoreScale
         ' 
         lblScoreScale.AutoSize = True
-        lblScoreScale.Font = New Font("Segoe UI", 10F)
+        lblScoreScale.Font = New Font("Segoe UI", 10.0F)
         lblScoreScale.ForeColor = Color.FromArgb(CByte(108), CByte(117), CByte(125))
         lblScoreScale.Location = New Point(145, 74)
         lblScoreScale.Name = "lblScoreScale"
-        lblScoreScale.Size = New Size(53, 23)
+        lblScoreScale.Size = New Size(49, 23)
         lblScoreScale.TabIndex = 2
         lblScoreScale.Text = "/ 100"
         ' 

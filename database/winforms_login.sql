@@ -16,10 +16,11 @@ CREATE TABLE IF NOT EXISTS `dosen` (
     UNIQUE KEY `uq_dosen_nidn` (`nidn`)
 ) ENGINE=InnoDB;
 
--- 2. Tabel Users (Mendukung role mahasiswa, admin, dosen, serta kelas mahasiswa)
+-- 2. Tabel Users (Mendukung role mahasiswa, admin, dosen, nama lengkap, dan kelas)
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `username` VARCHAR(50) NOT NULL,
+    `nama` VARCHAR(100) NULL,
     `password` VARCHAR(255) NOT NULL,
     `role` ENUM('mahasiswa', 'admin', 'dosen') NOT NULL DEFAULT 'mahasiswa',
     `kelas` VARCHAR(20) NULL,
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 CREATE TABLE IF NOT EXISTS `mata_kuliah` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `nama` VARCHAR(100) NOT NULL,
-    `kelas` VARCHAR(20) NULL DEFAULT 'TI 3A',
+    `kelas` VARCHAR(20) NULL DEFAULT 'TI 3C',
     `ruang` VARCHAR(20) NULL,
     `dosen_id` INT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`),
@@ -98,65 +99,76 @@ CREATE TABLE IF NOT EXISTS `edom_jawaban` (
 ) ENGINE=InnoDB;
 
 -- ============================================================================
--- SINTAKS MIGRASI: Jalankan jika tabel sudah ada sebelumnya di database
--- ============================================================================
-ALTER TABLE `users` 
-    MODIFY COLUMN `role` ENUM('mahasiswa', 'admin', 'dosen') NOT NULL DEFAULT 'mahasiswa';
-
--- ============================================================================
--- DATA AWAL DOSEN
+-- DATA DOSEN KELAS TI 3C (NIP/NIDN dikosongkan sementara)
 -- ============================================================================
 INSERT INTO `dosen` (`nidn`, `nama`)
-VALUES
-    ('0012038501', 'Asep Taufik, M.Kom.'),
-    ('0015078802', 'Risna Sari, M.Kom.'),
-    ('0021098603', 'Bagus Wijaya, M.Kom.'),
-    ('0005118004', 'Dr. Hendra Pratama, M.T.')
-ON DUPLICATE KEY UPDATE
-    `nidn` = VALUES(`nidn`),
-    `nama` = VALUES(`nama`);
+SELECT NULL, src.`nama`
+FROM (
+    SELECT 'Anggi Mardiyono' AS `nama`
+    UNION ALL SELECT 'Anita Hidayati'
+    UNION ALL SELECT 'Asep Taufik Muharram'
+    UNION ALL SELECT 'Bambang Warsuta'
+    UNION ALL SELECT 'Chairul Fikri'
+    UNION ALL SELECT 'Defiana Arnaldy'
+    UNION ALL SELECT 'Fajar Septian'
+    UNION ALL SELECT 'Iwan Sonjaya'
+    UNION ALL SELECT 'Risna Sari'
+    UNION ALL SELECT 'Rizki Elisa Nalawati'
+) src
+WHERE NOT EXISTS (SELECT 1 FROM `dosen` d WHERE d.`nama` = src.`nama`);
 
 -- ============================================================================
--- DATA MATA KULIAH (Setiap dosen memiliki mata kuliah dan kelas yang diajar)
+-- DATA MATA KULIAH KELAS TI 3C
 -- ============================================================================
--- Asep Taufik, M.Kom.
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Web Lanjut', 'TI 3A', 'AA 301', `id`
-FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Web Lanjut');
+SELECT 'TIK309 - Grafika Komputer', 'TI 3C', 'AA 301', `id`
+FROM `dosen` WHERE `nama` = 'Anggi Mardiyono'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK309 - Grafika Komputer');
 
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Berorientasi Objek', 'TI 3B', 'AA 304', `id`
-FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Berorientasi Objek');
+SELECT 'TIK308 - Analisis dan Desain Sistem Informasi', 'TI 3C', 'AA 302', `id`
+FROM `dosen` WHERE `nama` = 'Anita Hidayati'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK308 - Analisis dan Desain Sistem Informasi');
 
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Workshop Aplikasi Enterprise', 'TI 3C', 'Lab RPL 1', `id`
-FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Workshop Aplikasi Enterprise');
-
--- Risna Sari, M.Kom.
-INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Basis Data', 'TI 3A', 'GSG 204', `id`
-FROM `dosen` WHERE `nama` = 'Risna Sari, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Basis Data');
+SELECT 'TIK306 - Pemrograman Web Lanjut', 'TI 3C', 'Lab RPL 1', `id`
+FROM `dosen` WHERE `nama` = 'Asep Taufik Muharram'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK306 - Pemrograman Web Lanjut');
 
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Administrasi Basis Data', 'TI 3B', 'GSG 205', `id`
-FROM `dosen` WHERE `nama` = 'Risna Sari, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Administrasi Basis Data');
+SELECT 'TIK302 - Manajemen Proyek TIK', 'TI 3C', 'GSG 201', `id`
+FROM `dosen` WHERE `nama` = 'Bambang Warsuta'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK302 - Manajemen Proyek TIK');
 
--- Bagus Wijaya, M.Kom.
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Analisis Sistem', 'TI 3C', 'PUT 301', `id`
-FROM `dosen` WHERE `nama` = 'Bagus Wijaya, M.Kom.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Analisis Sistem');
+SELECT 'TIK301 - Pemrograman Visual', 'TI 3C', 'Lab RPL 2', `id`
+FROM `dosen` WHERE `nama` = 'Chairul Fikri'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK301 - Pemrograman Visual');
 
--- Dr. Hendra Pratama, M.T.
 INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
-SELECT 'Rekayasa Perangkat Lunak', 'TI 3C', 'AA 205', `id`
-FROM `dosen` WHERE `nama` = 'Dr. Hendra Pratama, M.T.'
-AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Rekayasa Perangkat Lunak');
+SELECT 'TIK310 - Sistem Terdistribusi', 'TI 3C', 'AA 304', `id`
+FROM `dosen` WHERE `nama` = 'Defiana Arnaldy'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK310 - Sistem Terdistribusi');
+
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'TIK305 - Metode Numerik', 'TI 3C', 'PUT 301', `id`
+FROM `dosen` WHERE `nama` = 'Fajar Septian'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK305 - Metode Numerik');
+
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'TIK303 - Desain UI/UX', 'TI 3C', 'Lab Multimedia', `id`
+FROM `dosen` WHERE `nama` = 'Iwan Sonjaya'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK303 - Desain UI/UX');
+
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'TIK307 - Pemrograman Basis Data', 'TI 3C', 'GSG 204', `id`
+FROM `dosen` WHERE `nama` = 'Risna Sari'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK307 - Pemrograman Basis Data');
+
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'TIK304 - Kecerdasan Buatan', 'TI 3C', 'AA 205', `id`
+FROM `dosen` WHERE `nama` = 'Rizki Elisa Nalawati'
+AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK304 - Kecerdasan Buatan');
 
 -- ============================================================================
 -- BUTIR PERTANYAAN EDOM (sesuai INSTRUMEN EDOM 2023)
@@ -200,132 +212,56 @@ ON DUPLICATE KEY UPDATE
     `pertanyaan` = VALUES(`pertanyaan`);
 
 -- ============================================================================
--- DATA AKUN PENGGUNA (Admin, Mahasiswa, dan Dosen)
--- Password default: admin123 (admin), 12345 (mahasiswa), dosen123 (dosen)
+-- DATA AKUN PENGGUNA (Admin, 5 Mahasiswa TI 3C, dan 1 Akun Dosen)
+-- Password default: admin123 (admin), 12345 (semua mahasiswa), dosen123 (dosen)
 -- ============================================================================
 -- Akun Admin
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-VALUES ('admin', 'admin123', 'admin', NULL)
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`);
+INSERT INTO `users` (`username`, `nama`, `password`, `role`, `kelas`, `dosen_id`)
+VALUES ('admin', 'Administrator', 'admin123', 'admin', NULL, NULL)
+ON DUPLICATE KEY UPDATE `nama` = VALUES(`nama`), `role` = VALUES(`role`);
 
--- Akun Mahasiswa per Kelas (TI 3A: 6 mhs, TI 3B: 5 mhs, TI 3C: 5 mhs)
-INSERT INTO `users` (`username`, `password`, `role`, `kelas`, `dosen_id`)
+-- 5 Akun Mahasiswa Kelas TI 3C (Password sama: 12345)
+INSERT INTO `users` (`username`, `nama`, `password`, `role`, `kelas`, `dosen_id`)
 VALUES
-    ('2507411001', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411002', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411003', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411004', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411006', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411007', '12345', 'mahasiswa', 'TI 3A', NULL),
-    ('2507411005', '12345', 'mahasiswa', 'TI 3B', NULL),
-    ('2507411008', '12345', 'mahasiswa', 'TI 3B', NULL),
-    ('2507411009', '12345', 'mahasiswa', 'TI 3B', NULL),
-    ('2507411010', '12345', 'mahasiswa', 'TI 3B', NULL),
-    ('2507411011', '12345', 'mahasiswa', 'TI 3B', NULL),
-    ('2507411026', '12345', 'mahasiswa', 'TI 3C', NULL),
-    ('2507411012', '12345', 'mahasiswa', 'TI 3C', NULL),
-    ('2507411013', '12345', 'mahasiswa', 'TI 3C', NULL),
-    ('2507411014', '12345', 'mahasiswa', 'TI 3C', NULL),
-    ('2507411015', '12345', 'mahasiswa', 'TI 3C', NULL)
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `kelas` = VALUES(`kelas`);
+    ('2507411027', 'Arya Dwi Prasetyo',       '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411086', 'Arraya Andika',           '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411026', 'Deni Dwi Prasetya',       '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411023', 'Fadhilah Ravid Baladewa', '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411029', 'Raja Arya Darma Putra',   '12345', 'mahasiswa', 'TI 3C', NULL)
+ON DUPLICATE KEY UPDATE
+    `nama` = VALUES(`nama`),
+    `password` = VALUES(`password`),
+    `role` = VALUES(`role`),
+    `kelas` = VALUES(`kelas`);
 
--- Akun Dosen (Bisa login via username 'dosen' atau NIDN masing-masing dosen)
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-SELECT 'dosen', 'dosen123', 'dosen', `id`
-FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `dosen_id` = VALUES(`dosen_id`);
-
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-SELECT '0012038501', 'dosen123', 'dosen', `id`
-FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `dosen_id` = VALUES(`dosen_id`);
-
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-SELECT '0015078802', 'dosen123', 'dosen', `id`
-FROM `dosen` WHERE `nama` = 'Risna Sari, M.Kom.'
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `dosen_id` = VALUES(`dosen_id`);
-
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-SELECT '0021098603', 'dosen123', 'dosen', `id`
-FROM `dosen` WHERE `nama` = 'Bagus Wijaya, M.Kom.'
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `dosen_id` = VALUES(`dosen_id`);
-
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
-SELECT '0005118004', 'dosen123', 'dosen', `id`
-FROM `dosen` WHERE `nama` = 'Dr. Hendra Pratama, M.T.'
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `dosen_id` = VALUES(`dosen_id`);
+-- 1 Akun Dosen untuk login (terhubung ke Asep Taufik Muharram)
+INSERT INTO `users` (`username`, `nama`, `password`, `role`, `kelas`, `dosen_id`)
+SELECT 'dosen', 'Asep Taufik Muharram', 'dosen123', 'dosen', NULL, `id`
+FROM `dosen` WHERE `nama` = 'Asep Taufik Muharram'
+ON DUPLICATE KEY UPDATE
+    `nama` = VALUES(`nama`),
+    `role` = VALUES(`role`),
+    `dosen_id` = VALUES(`dosen_id`);
 
 -- ============================================================================
--- DATA HASIL PENGISIAN EDOM (Statistik & Evaluasi Mahasiswa)
+-- DATA CONTOH HASIL PENGISIAN EDOM
 -- ============================================================================
--- Evaluasi untuk Pemrograman Web Lanjut (Dosen: Asep Taufik, M.Kom.)
 INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411026', mk.id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.', NOW() - INTERVAL 5 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Web Lanjut'
+SELECT '2507411026', mk.id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.', NOW() - INTERVAL 3 DAY
+FROM `mata_kuliah` mk WHERE mk.nama = 'TIK306 - Pemrograman Web Lanjut'
 ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
 
 INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411001', mk.id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.', NOW() - INTERVAL 4 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Web Lanjut'
+SELECT '2507411027', mk.id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.', NOW() - INTERVAL 2 DAY
+FROM `mata_kuliah` mk WHERE mk.nama = 'TIK306 - Pemrograman Web Lanjut'
 ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
 
 INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411002', mk.id, 4.20, 4.40, 4.50, 4.30, 4.35, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.', NOW() - INTERVAL 3 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Web Lanjut'
+SELECT '2507411029', mk.id, 4.60, 4.70, 4.80, 4.50, 4.65, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.', NOW() - INTERVAL 1 DAY
+FROM `mata_kuliah` mk WHERE mk.nama = 'TIK306 - Pemrograman Web Lanjut'
 ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
 
 INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411003', mk.id, 4.70, 4.80, 4.80, 4.70, 4.75, 'Waktu pembelajaran dimanfaatkan sangat efektif, materi selalu update.', NOW() - INTERVAL 2 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Web Lanjut'
+SELECT '2507411026', mk.id, 4.70, 4.80, 4.60, 4.70, 4.70, 'Latihan query SQL dan normalisasi dijelaskan tahap demi tahap.', NOW() - INTERVAL 2 DAY
+FROM `mata_kuliah` mk WHERE mk.nama = 'TIK307 - Pemrograman Basis Data'
 ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411004', mk.id, 4.40, 4.50, 4.60, 4.50, 4.50, 'Sangat baik, mohon ditambahkan studi kasus integrasi API eksternal.', NOW() - INTERVAL 1 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Web Lanjut'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
--- Evaluasi untuk Pemrograman Berorientasi Objek (Dosen: Asep Taufik, M.Kom.)
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411026', mk.id, 4.60, 4.70, 4.80, 4.50, 4.65, 'Konsep OOP seperti polymorphism dan encapsulation dijelaskan dengan analogi yang sangat mudah dimengerti.', NOW() - INTERVAL 3 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Berorientasi Objek'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411002', mk.id, 4.50, 4.60, 4.50, 4.60, 4.55, 'Tugas praktikum sangat melatih logika pemrograman berorientasi objek.', NOW() - INTERVAL 2 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Berorientasi Objek'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411005', mk.id, 4.70, 4.80, 4.90, 4.80, 4.80, 'Kuis dan feedback latihan selalu dibahas secara transparan di kelas.', NOW() - INTERVAL 1 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Berorientasi Objek'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
--- Evaluasi untuk Workshop Aplikasi Enterprise (Dosen: Asep Taufik, M.Kom.)
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411026', mk.id, 4.80, 4.90, 4.80, 4.90, 4.85, 'Pengalaman proyek riil sangat berharga untuk persiapan magang dan tugas akhir.', NOW() - INTERVAL 2 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Workshop Aplikasi Enterprise'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411001', mk.id, 4.60, 4.70, 4.70, 4.60, 4.65, 'Bimbingan arsitektur software sangat detail.', NOW() - INTERVAL 1 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Workshop Aplikasi Enterprise'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
--- Evaluasi untuk Pemrograman Basis Data (Dosen: Risna Sari, M.Kom.)
-INSERT INTO `edom_pengisian` (`username`, `mata_kuliah_id`, `skor_pedagogik`, `skor_profesional`, `skor_kepribadian`, `skor_sosial`, `nilai_rata_rata`, `saran`, `diisi_pada`)
-SELECT '2507411026', mk.id, 4.70, 4.80, 4.60, 4.70, 4.70, 'Latihan query SQL dan normalisasi dijelaskan tahap demi tahap.', NOW() - INTERVAL 4 DAY
-FROM `mata_kuliah` mk WHERE mk.nama = 'Pemrograman Basis Data'
-ON DUPLICATE KEY UPDATE `nilai_rata_rata` = VALUES(`nilai_rata_rata`);
-
--- ============================================================================
--- VERIFIKASI SINTAKS & DATA
--- ============================================================================
-SELECT * FROM `users`;
-SELECT * FROM `dosen`;
-SELECT mk.id, mk.nama, mk.ruang, d.nama AS dosen
-FROM `mata_kuliah` mk
-JOIN `dosen` d ON d.id = mk.dosen_id;
-SELECT p.id, p.username, mk.nama AS mata_kuliah, p.nilai_rata_rata, p.saran, p.diisi_pada
-FROM `edom_pengisian` p
-JOIN `mata_kuliah` mk ON mk.id = p.mata_kuliah_id;
-SELECT `nomor`, `kompetensi`, `pertanyaan` FROM `edom_pertanyaan` ORDER BY `nomor`;

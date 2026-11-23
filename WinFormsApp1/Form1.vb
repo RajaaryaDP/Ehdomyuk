@@ -17,6 +17,13 @@ Public Class Form1
         txtNim.Focus()
     End Sub
 
+    Private Sub Form1_VisibleChanged(sender As Object, e As EventArgs) Handles MyBase.VisibleChanged
+        If Visible Then
+            txtNim.SelectAll()
+            txtNim.Focus()
+        End If
+    End Sub
+
     ' Input box border: idle, focused, or invalid.
     Private Sub InputBox_Paint(sender As Object, e As PaintEventArgs) _
         Handles pnlNimBox.Paint, pnlPasswordBox.Paint

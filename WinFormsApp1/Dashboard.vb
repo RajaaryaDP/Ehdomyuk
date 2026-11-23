@@ -31,7 +31,12 @@ Public Class Dashboard
         dgvSchedule.Rows.Clear()
 
         Try
-            Dim courses As List(Of MataKuliahItem) = Await Task.Run(AddressOf DatabaseHelper.GetMataKuliah)
+            Dim profil As UserProfilItem = Await Task.Run(Function() DatabaseHelper.GetUserProfil(Username))
+            Dim displayName As String = If(String.IsNullOrWhiteSpace(profil.Nama), Username, profil.Nama)
+            lblWelcome.Text = $"Selamat datang, {displayName}"
+            lblInfo.Text = $"NIM: {Username}  |  Kelas: {profil.Kelas}  |  Ringkasan akademik dan jadwal perkuliahan semester aktif"
+
+            Dim courses As List(Of MataKuliahItem) = Await Task.Run(Function() DatabaseHelper.GetMataKuliah(profil.Kelas))
             If courses IsNot Nothing AndAlso courses.Count > 0 Then
                 Dim defaultTimes() As String = {
                     "08:00 - 09:40", "10:00 - 11:40", "13:00 - 14:40", "15:00 - 16:40", "16:40 - 18:20"

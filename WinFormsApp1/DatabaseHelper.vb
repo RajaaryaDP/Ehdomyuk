@@ -118,6 +118,21 @@ Public Module DatabaseHelper
                     cmd.ExecuteNonQuery()
                 End Using
             End If
+
+            Dim hasUserNamaColumn As Boolean
+            Using cmd As New MySqlCommand("SHOW COLUMNS FROM users LIKE 'nama'", connection)
+                Using reader As MySqlDataReader = cmd.ExecuteReader()
+                    hasUserNamaColumn = reader.HasRows
+                End Using
+            End Using
+
+            If Not hasUserNamaColumn Then
+                Using cmd As New MySqlCommand(
+                    "ALTER TABLE users ADD COLUMN nama VARCHAR(100) NULL AFTER username",
+                    connection)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End If
         Catch
         End Try
 
@@ -135,7 +150,7 @@ Public Module DatabaseHelper
                 "CREATE TABLE IF NOT EXISTS mata_kuliah (" &
                 "  id INT AUTO_INCREMENT PRIMARY KEY," &
                 "  nama VARCHAR(100) NOT NULL," &
-                "  kelas VARCHAR(20) NULL DEFAULT 'TI 3A'," &
+                "  kelas VARCHAR(20) NULL DEFAULT 'TI 3C'," &
                 "  ruang VARCHAR(20) NULL," &
                 "  dosen_id INT NOT NULL," &
                 "  CONSTRAINT fk_mata_kuliah_dosen FOREIGN KEY (dosen_id) REFERENCES dosen (id) ON DELETE RESTRICT" &
@@ -152,7 +167,7 @@ Public Module DatabaseHelper
 
             If Not hasMkKelasColumn Then
                 Using cmd As New MySqlCommand(
-                    "ALTER TABLE mata_kuliah ADD COLUMN kelas VARCHAR(20) NULL DEFAULT 'TI 3A'",
+                    "ALTER TABLE mata_kuliah ADD COLUMN kelas VARCHAR(20) NULL DEFAULT 'TI 3C'",
                     connection)
                     cmd.ExecuteNonQuery()
                 End Using
@@ -198,33 +213,20 @@ Public Module DatabaseHelper
                 End Using
             End If
 
-            Dim dosenCount As Integer
-            Using cmd As New MySqlCommand("SELECT COUNT(*) FROM dosen", connection)
-                dosenCount = Convert.ToInt32(cmd.ExecuteScalar())
-            End Using
+            ' Rapikan data seed lama & pastikan 10 dosen + 10 mata kuliah TI 3C tersedia
+            EnsureTI3CCoursesAndLecturers(connection)
 
-            If dosenCount = 0 Then
-                SeedInitialCourses(connection)
-            End If
+            ' Hapus akun dummy mahasiswa & akun login dosen lama yang tidak dipakai lagi
+            CleanupLegacySeedUsers(connection)
 
-            ' Ensure default accounts & student class memberships (TI 3A: 6, TI 3B: 5, TI 3C: 5)
-            EnsureAccount(connection, "admin", "admin123", RoleAdmin)
-            EnsureMahasiswaAccount(connection, "2507411001", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411002", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411003", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411004", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411006", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411007", "12345", "TI 3A")
-            EnsureMahasiswaAccount(connection, "2507411005", "12345", "TI 3B")
-            EnsureMahasiswaAccount(connection, "2507411008", "12345", "TI 3B")
-            EnsureMahasiswaAccount(connection, "2507411009", "12345", "TI 3B")
-            EnsureMahasiswaAccount(connection, "2507411010", "12345", "TI 3B")
-            EnsureMahasiswaAccount(connection, "2507411011", "12345", "TI 3B")
-            EnsureMahasiswaAccount(connection, "2507411026", "12345", "TI 3C")
-            EnsureMahasiswaAccount(connection, "2507411012", "12345", "TI 3C")
-            EnsureMahasiswaAccount(connection, "2507411013", "12345", "TI 3C")
-            EnsureMahasiswaAccount(connection, "2507411014", "12345", "TI 3C")
-            EnsureMahasiswaAccount(connection, "2507411015", "12345", "TI 3C")
+            ' Ensure default accounts: 1 admin, 5 mahasiswa TI 3C (password sama: 12345), 1 akun login dosen
+            EnsureAccount(connection, "admin", "admin123", RoleAdmin, "Administrator")
+
+            EnsureMahasiswaAccount(connection, "2507411027", "Arya Dwi Prasetyo", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411086", "Arraya Andika", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411026", "Deni Dwi Prasetya", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411023", "Fadhilah Ravid Baladewa", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411029", "Raja Arya Darma Putra", "12345", "TI 3C")
 
             Using cmd As New MySqlCommand(
                 "UPDATE users SET kelas = 'TI 3C' WHERE role = 'mahasiswa' AND (kelas IS NULL OR TRIM(kelas) = '')",
@@ -232,7 +234,7 @@ Public Module DatabaseHelper
                 cmd.ExecuteNonQuery()
             End Using
 
-            ' Link default 'dosen' to Asep Taufik, M.Kom.
+            ' Hubungkan 1 akun login 'dosen' ke Asep Taufik Muharram
             Dim asepId As Integer = 0
             Using cmd As New MySqlCommand("SELECT id FROM dosen WHERE nama LIKE '%Asep Taufik%' LIMIT 1", connection)
                 Dim res As Object = cmd.ExecuteScalar()
@@ -241,17 +243,10 @@ Public Module DatabaseHelper
                 End If
             End Using
 
-            EnsureDosenAccount(connection, "dosen", "dosen123", RoleDosen, asepId)
-            EnsureDosenAccount(connection, "0012038501", "dosen123", RoleDosen, asepId)
+            EnsureDosenAccount(connection, "dosen", "dosen123", RoleDosen, asepId, "Asep Taufik Muharram")
 
             If asepId > 0 Then
-                EnsureCourseExists(connection, "Pemrograman Web Lanjut", "AA 301", asepId, "TI 3A")
-                EnsureCourseExists(connection, "Pemrograman Berorientasi Objek", "AA 304", asepId, "TI 3B")
-                EnsureCourseExists(connection, "Workshop Aplikasi Enterprise", "Lab RPL 1", asepId, "TI 3C")
-                EnsureCourseKelasDefaults(connection)
                 EnsureSampleEdomFeedback(connection)
-            Else
-                EnsureCourseKelasDefaults(connection)
             End If
         Catch
         End Try
@@ -387,7 +382,7 @@ Public Module DatabaseHelper
         End Using
     End Function
 
-    Private Sub EnsureAccount(connection As MySqlConnection, username As String, password As String, role As String)
+    Private Sub EnsureAccount(connection As MySqlConnection, username As String, password As String, role As String, Optional nama As String = Nothing)
         Dim exists As Integer
         Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM users WHERE username = @u", connection)
             checkCmd.Parameters.AddWithValue("@u", username)
@@ -396,22 +391,24 @@ Public Module DatabaseHelper
 
         If exists = 0 Then
             Using insertCmd As New MySqlCommand(
-                "INSERT INTO users (username, password, role) VALUES (@u, @p, @r)", connection)
+                "INSERT INTO users (username, nama, password, role) VALUES (@u, @n, @p, @r)", connection)
                 insertCmd.Parameters.AddWithValue("@u", username)
+                insertCmd.Parameters.AddWithValue("@n", NullIfEmpty(nama))
                 insertCmd.Parameters.AddWithValue("@p", password)
                 insertCmd.Parameters.AddWithValue("@r", role)
                 insertCmd.ExecuteNonQuery()
             End Using
         ElseIf role = RoleAdmin Then
             Using updateCmd As New MySqlCommand(
-                "UPDATE users SET role = 'admin' WHERE username = @u", connection)
+                "UPDATE users SET role = 'admin', nama = COALESCE(NULLIF(TRIM(nama), ''), @n) WHERE username = @u", connection)
+                updateCmd.Parameters.AddWithValue("@n", NullIfEmpty(nama))
                 updateCmd.Parameters.AddWithValue("@u", username)
                 updateCmd.ExecuteNonQuery()
             End Using
         End If
     End Sub
 
-    Private Sub EnsureDosenAccount(connection As MySqlConnection, username As String, password As String, role As String, dosenId As Integer)
+    Private Sub EnsureDosenAccount(connection As MySqlConnection, username As String, password As String, role As String, dosenId As Integer, Optional nama As String = Nothing)
         Dim exists As Integer
         Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM users WHERE username = @u", connection)
             checkCmd.Parameters.AddWithValue("@u", username)
@@ -420,8 +417,9 @@ Public Module DatabaseHelper
 
         If exists = 0 Then
             Using insertCmd As New MySqlCommand(
-                "INSERT INTO users (username, password, role, dosen_id) VALUES (@u, @p, @r, @d)", connection)
+                "INSERT INTO users (username, nama, password, role, dosen_id) VALUES (@u, @n, @p, @r, @d)", connection)
                 insertCmd.Parameters.AddWithValue("@u", username)
+                insertCmd.Parameters.AddWithValue("@n", NullIfEmpty(nama))
                 insertCmd.Parameters.AddWithValue("@p", password)
                 insertCmd.Parameters.AddWithValue("@r", role)
                 insertCmd.Parameters.AddWithValue("@d", If(dosenId > 0, dosenId, DBNull.Value))
@@ -429,16 +427,17 @@ Public Module DatabaseHelper
             End Using
         Else
             Using updateCmd As New MySqlCommand(
-                "UPDATE users SET role = @r, dosen_id = @d WHERE username = @u", connection)
+                "UPDATE users SET role = @r, dosen_id = @d, nama = COALESCE(@n, nama) WHERE username = @u", connection)
                 updateCmd.Parameters.AddWithValue("@r", role)
                 updateCmd.Parameters.AddWithValue("@d", If(dosenId > 0, dosenId, DBNull.Value))
+                updateCmd.Parameters.AddWithValue("@n", NullIfEmpty(nama))
                 updateCmd.Parameters.AddWithValue("@u", username)
                 updateCmd.ExecuteNonQuery()
             End Using
         End If
     End Sub
 
-    Private Sub EnsureMahasiswaAccount(connection As MySqlConnection, username As String, password As String, kelas As String)
+    Private Sub EnsureMahasiswaAccount(connection As MySqlConnection, username As String, nama As String, password As String, kelas As String)
         Dim exists As Integer
         Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM users WHERE username = @u", connection)
             checkCmd.Parameters.AddWithValue("@u", username)
@@ -447,8 +446,9 @@ Public Module DatabaseHelper
 
         If exists = 0 Then
             Using insertCmd As New MySqlCommand(
-                "INSERT INTO users (username, password, role, kelas) VALUES (@u, @p, @r, @k)", connection)
+                "INSERT INTO users (username, nama, password, role, kelas) VALUES (@u, @n, @p, @r, @k)", connection)
                 insertCmd.Parameters.AddWithValue("@u", username)
+                insertCmd.Parameters.AddWithValue("@n", nama)
                 insertCmd.Parameters.AddWithValue("@p", password)
                 insertCmd.Parameters.AddWithValue("@r", RoleMahasiswa)
                 insertCmd.Parameters.AddWithValue("@k", kelas)
@@ -456,7 +456,10 @@ Public Module DatabaseHelper
             End Using
         Else
             Using updateCmd As New MySqlCommand(
-                "UPDATE users SET kelas = @k WHERE username = @u AND (kelas IS NULL OR TRIM(kelas) = '')", connection)
+                "UPDATE users SET nama = @n, password = @p, role = @r, kelas = @k WHERE username = @u", connection)
+                updateCmd.Parameters.AddWithValue("@n", nama)
+                updateCmd.Parameters.AddWithValue("@p", password)
+                updateCmd.Parameters.AddWithValue("@r", RoleMahasiswa)
                 updateCmd.Parameters.AddWithValue("@k", kelas)
                 updateCmd.Parameters.AddWithValue("@u", username)
                 updateCmd.ExecuteNonQuery()
@@ -464,56 +467,130 @@ Public Module DatabaseHelper
         End If
     End Sub
 
-    Private Sub EnsureCourseExists(connection As MySqlConnection, namaMk As String, ruang As String, dosenId As Integer, Optional kelas As String = "TI 3A")
-        Dim exists As Integer
-        Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM mata_kuliah WHERE nama = @n", connection)
-            checkCmd.Parameters.AddWithValue("@n", namaMk)
-            exists = Convert.ToInt32(checkCmd.ExecuteScalar())
-        End Using
-
-        If exists = 0 Then
-            Using insertCmd As New MySqlCommand(
-                "INSERT INTO mata_kuliah (nama, kelas, ruang, dosen_id) VALUES (@n, @k, @r, @d)", connection)
-                insertCmd.Parameters.AddWithValue("@n", namaMk)
-                insertCmd.Parameters.AddWithValue("@k", kelas)
-                insertCmd.Parameters.AddWithValue("@r", ruang)
-                insertCmd.Parameters.AddWithValue("@d", dosenId)
-                insertCmd.ExecuteNonQuery()
-            End Using
-        Else
-            Using updateCmd As New MySqlCommand(
-                "UPDATE mata_kuliah SET kelas = @k WHERE nama = @n AND (kelas IS NULL OR TRIM(kelas) = '')", connection)
-                updateCmd.Parameters.AddWithValue("@k", kelas)
-                updateCmd.Parameters.AddWithValue("@n", namaMk)
-                updateCmd.ExecuteNonQuery()
-            End Using
-        End If
-    End Sub
-
-    Private Sub EnsureCourseKelasDefaults(connection As MySqlConnection)
-        Dim mappings As (Nama As String, Kelas As String)() = {
-            ("Pemrograman Web Lanjut", "TI 3A"),
-            ("Pemrograman Berorientasi Objek", "TI 3B"),
-            ("Workshop Aplikasi Enterprise", "TI 3C"),
-            ("Pemrograman Basis Data", "TI 3A"),
-            ("Administrasi Basis Data", "TI 3B"),
-            ("Analisis Sistem", "TI 3C"),
-            ("Rekayasa Perangkat Lunak", "TI 3C")
+    Private Sub CleanupLegacySeedUsers(connection As MySqlConnection)
+        Dim legacyMahasiswa As String() = {
+            "2507411001", "2507411002", "2507411003", "2507411004", "2507411005",
+            "2507411006", "2507411007", "2507411008", "2507411009", "2507411010",
+            "2507411011", "2507411012", "2507411013", "2507411014", "2507411015"
         }
 
-        For Each m In mappings
-            Using cmd As New MySqlCommand(
-                "UPDATE mata_kuliah SET kelas = @k WHERE nama = @n", connection)
-                cmd.Parameters.AddWithValue("@k", m.Kelas)
-                cmd.Parameters.AddWithValue("@n", m.Nama)
+        For Each nim In legacyMahasiswa
+            Using cmd As New MySqlCommand("DELETE FROM edom_pengisian WHERE username = @u", connection)
+                cmd.Parameters.AddWithValue("@u", nim)
+                cmd.ExecuteNonQuery()
+            End Using
+            Using cmd As New MySqlCommand("DELETE FROM users WHERE username = @u AND role = 'mahasiswa'", connection)
+                cmd.Parameters.AddWithValue("@u", nim)
                 cmd.ExecuteNonQuery()
             End Using
         Next
 
-        Using cmd As New MySqlCommand(
-            "UPDATE mata_kuliah SET kelas = 'TI 3A' WHERE kelas IS NULL OR TRIM(kelas) = ''", connection)
+        Dim legacyDosenUsers As String() = {"0012038501", "0015078802", "0021098603", "0005118004"}
+        For Each u In legacyDosenUsers
+            Using cmd As New MySqlCommand("DELETE FROM users WHERE username = @u AND role = 'dosen'", connection)
+                cmd.Parameters.AddWithValue("@u", u)
+                cmd.ExecuteNonQuery()
+            End Using
+        Next
+    End Sub
+
+    Private Sub EnsureTI3CCoursesAndLecturers(connection As MySqlConnection)
+        ' Migrasi nama dosen/matkul lama ke daftar resmi TI 3C agar riwayat EDOM tetap terjaga
+        Using cmd As New MySqlCommand("UPDATE dosen SET nama = 'Asep Taufik Muharram', nidn = NULL WHERE nama = 'Asep Taufik, M.Kom.'", connection)
             cmd.ExecuteNonQuery()
         End Using
+        Using cmd As New MySqlCommand("UPDATE dosen SET nama = 'Risna Sari', nidn = NULL WHERE nama = 'Risna Sari, M.Kom.'", connection)
+            cmd.ExecuteNonQuery()
+        End Using
+        Using cmd As New MySqlCommand("UPDATE mata_kuliah SET nama = 'TIK306 - Pemrograman Web Lanjut', kelas = 'TI 3C' WHERE nama = 'Pemrograman Web Lanjut'", connection)
+            cmd.ExecuteNonQuery()
+        End Using
+        Using cmd As New MySqlCommand("UPDATE mata_kuliah SET nama = 'TIK307 - Pemrograman Basis Data', kelas = 'TI 3C' WHERE nama = 'Pemrograman Basis Data'", connection)
+            cmd.ExecuteNonQuery()
+        End Using
+
+        ' Bersihkan matkul & dosen dummy lama di luar daftar TI 3C
+        Dim legacyCourses As String() = {
+            "Pemrograman Berorientasi Objek",
+            "Workshop Aplikasi Enterprise",
+            "Administrasi Basis Data",
+            "Analisis Sistem",
+            "Rekayasa Perangkat Lunak"
+        }
+        For Each mkNama In legacyCourses
+            Using cmd As New MySqlCommand("DELETE FROM mata_kuliah WHERE nama = @n", connection)
+                cmd.Parameters.AddWithValue("@n", mkNama)
+                cmd.ExecuteNonQuery()
+            End Using
+        Next
+
+        Dim legacyDosen As String() = {"Bagus Wijaya, M.Kom.", "Dr. Hendra Pratama, M.T."}
+        For Each dNama In legacyDosen
+            Using cmd As New MySqlCommand("UPDATE users SET dosen_id = NULL WHERE dosen_id IN (SELECT id FROM dosen WHERE nama = @n)", connection)
+                cmd.Parameters.AddWithValue("@n", dNama)
+                cmd.ExecuteNonQuery()
+            End Using
+            Using cmd As New MySqlCommand("DELETE FROM dosen WHERE nama = @n", connection)
+                cmd.Parameters.AddWithValue("@n", dNama)
+                cmd.ExecuteNonQuery()
+            End Using
+        Next
+
+        ' 10 Dosen & 10 Mata Kuliah TI 3C (NIP/NIDN dikosongkan karena belum tersedia)
+        Dim daftarTI3C As (Matkul As String, Ruang As String, Dosen As String)() = {
+            ("TIK309 - Grafika Komputer", "AA 301", "Anggi Mardiyono"),
+            ("TIK308 - Analisis dan Desain Sistem Informasi", "AA 302", "Anita Hidayati"),
+            ("TIK306 - Pemrograman Web Lanjut", "Lab RPL 1", "Asep Taufik Muharram"),
+            ("TIK302 - Manajemen Proyek TIK", "GSG 201", "Bambang Warsuta"),
+            ("TIK301 - Pemrograman Visual", "Lab RPL 2", "Chairul Fikri"),
+            ("TIK310 - Sistem Terdistribusi", "AA 304", "Defiana Arnaldy"),
+            ("TIK305 - Metode Numerik", "PUT 301", "Fajar Septian"),
+            ("TIK303 - Desain UI/UX", "Lab Multimedia", "Iwan Sonjaya"),
+            ("TIK307 - Pemrograman Basis Data", "GSG 204", "Risna Sari"),
+            ("TIK304 - Kecerdasan Buatan", "AA 205", "Rizki Elisa Nalawati")
+        }
+
+        For Each item In daftarTI3C
+            Dim dosenId As Integer = 0
+            Using cmd As New MySqlCommand("SELECT id FROM dosen WHERE nama = @nama LIMIT 1", connection)
+                cmd.Parameters.AddWithValue("@nama", item.Dosen)
+                Dim res = cmd.ExecuteScalar()
+                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then
+                    dosenId = Convert.ToInt32(res)
+                End If
+            End Using
+
+            If dosenId = 0 Then
+                Using cmd As New MySqlCommand("INSERT INTO dosen (nidn, nama) VALUES (NULL, @nama)", connection)
+                    cmd.Parameters.AddWithValue("@nama", item.Dosen)
+                    cmd.ExecuteNonQuery()
+                    dosenId = Convert.ToInt32(cmd.LastInsertedId)
+                End Using
+            End If
+
+            Dim mkExists As Integer
+            Using cmd As New MySqlCommand("SELECT COUNT(*) FROM mata_kuliah WHERE nama = @n", connection)
+                cmd.Parameters.AddWithValue("@n", item.Matkul)
+                mkExists = Convert.ToInt32(cmd.ExecuteScalar())
+            End Using
+
+            If mkExists = 0 Then
+                Using cmd As New MySqlCommand(
+                    "INSERT INTO mata_kuliah (nama, kelas, ruang, dosen_id) VALUES (@n, 'TI 3C', @r, @d)", connection)
+                    cmd.Parameters.AddWithValue("@n", item.Matkul)
+                    cmd.Parameters.AddWithValue("@r", item.Ruang)
+                    cmd.Parameters.AddWithValue("@d", dosenId)
+                    cmd.ExecuteNonQuery()
+                End Using
+            Else
+                Using cmd As New MySqlCommand(
+                    "UPDATE mata_kuliah SET kelas = 'TI 3C', dosen_id = @d WHERE nama = @n AND (kelas IS NULL OR TRIM(kelas) = '' OR kelas <> 'TI 3C')", connection)
+                    cmd.Parameters.AddWithValue("@d", dosenId)
+                    cmd.Parameters.AddWithValue("@n", item.Matkul)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End If
+        Next
     End Sub
 
     Private Sub EnsureSampleEdomFeedback(connection As MySqlConnection)
@@ -524,7 +601,7 @@ Public Module DatabaseHelper
 
         If count = 0 Then
             Dim mkIdWeb As Integer = 0
-            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'Pemrograman Web Lanjut' LIMIT 1", connection)
+            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'TIK306 - Pemrograman Web Lanjut' LIMIT 1", connection)
                 Dim res = cmd.ExecuteScalar()
                 If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdWeb = Convert.ToInt32(res)
             End Using
@@ -533,87 +610,32 @@ Public Module DatabaseHelper
                 Using insertCmd As New MySqlCommand(
                     "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
                     "VALUES " &
-                    "('2507411001', @id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.'), " &
-                    "('2507411002', @id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.'), " &
-                    "('2507411003', @id, 4.20, 4.40, 4.50, 4.30, 4.35, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.'), " &
-                    "('2507411004', @id, 4.70, 4.80, 4.80, 4.70, 4.75, 'Waktu pembelajaran dimanfaatkan sangat efektif, materi selalu update.')",
+                    "('2507411026', @id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.'), " &
+                    "('2507411027', @id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.'), " &
+                    "('2507411029', @id, 4.60, 4.70, 4.80, 4.50, 4.65, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.')",
                     connection)
                     insertCmd.Parameters.AddWithValue("@id", mkIdWeb)
                     insertCmd.ExecuteNonQuery()
                 End Using
             End If
 
-            Dim mkIdPbo As Integer = 0
-            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'Pemrograman Berorientasi Objek' LIMIT 1", connection)
+            Dim mkIdDb As Integer = 0
+            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'TIK307 - Pemrograman Basis Data' LIMIT 1", connection)
                 Dim res = cmd.ExecuteScalar()
-                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdPbo = Convert.ToInt32(res)
+                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdDb = Convert.ToInt32(res)
             End Using
 
-            If mkIdPbo > 0 Then
+            If mkIdDb > 0 Then
                 Using insertCmd As New MySqlCommand(
                     "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
                     "VALUES " &
-                    "('2507411005', @id, 4.60, 4.70, 4.80, 4.50, 4.65, 'Konsep OOP seperti polymorphism dan encapsulation dijelaskan dengan analogi yang sangat mudah dimengerti.'), " &
-                    "('2507411008', @id, 4.50, 4.60, 4.50, 4.60, 4.55, 'Tugas praktikum sangat melatih logika pemrograman berorientasi objek.'), " &
-                    "('2507411009', @id, 4.70, 4.80, 4.90, 4.80, 4.80, 'Kuis dan feedback latihan selalu dibahas secara transparan di kelas.')",
+                    "('2507411026', @id, 4.70, 4.80, 4.60, 4.70, 4.70, 'Latihan query SQL dan normalisasi dijelaskan tahap demi tahap.')",
                     connection)
-                    insertCmd.Parameters.AddWithValue("@id", mkIdPbo)
-                    insertCmd.ExecuteNonQuery()
-                End Using
-            End If
-
-            Dim mkIdWae As Integer = 0
-            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'Workshop Aplikasi Enterprise' LIMIT 1", connection)
-                Dim res = cmd.ExecuteScalar()
-                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdWae = Convert.ToInt32(res)
-            End Using
-
-            If mkIdWae > 0 Then
-                Using insertCmd As New MySqlCommand(
-                    "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
-                    "VALUES " &
-                    "('2507411026', @id, 4.80, 4.90, 4.80, 4.90, 4.85, 'Pengalaman proyek riil sangat berharga untuk persiapan magang dan tugas akhir.'), " &
-                    "('2507411012', @id, 4.60, 4.70, 4.70, 4.60, 4.65, 'Bimbingan arsitektur software sangat detail.')",
-                    connection)
-                    insertCmd.Parameters.AddWithValue("@id", mkIdWae)
+                    insertCmd.Parameters.AddWithValue("@id", mkIdDb)
                     insertCmd.ExecuteNonQuery()
                 End Using
             End If
         End If
-    End Sub
-
-    Private Sub SeedInitialCourses(connection As MySqlConnection)
-        Dim seeds As (Nidn As String, Dosen As String, Matkul As String, Ruang As String)() = {
-            ("0012038501", "Asep Taufik, M.Kom.", "Pemrograman Web Lanjut", "AA 301"),
-            ("0015078802", "Risna Sari, M.Kom.", "Pemrograman Basis Data", "GSG 204"),
-            ("0021098603", "Bagus Wijaya, M.Kom.", "Analisis Sistem", "PUT 301"),
-            ("0005118004", "Dr. Hendra Pratama, M.T.", "Rekayasa Perangkat Lunak", "AA 205")
-        }
-
-        For Each s In seeds
-            Dim dosenId As Integer
-            Using cmd As New MySqlCommand("INSERT INTO dosen (nidn, nama) VALUES (@nidn, @nama) ON DUPLICATE KEY UPDATE nama = VALUES(nama)", connection)
-                cmd.Parameters.AddWithValue("@nidn", s.Nidn)
-                cmd.Parameters.AddWithValue("@nama", s.Dosen)
-                cmd.ExecuteNonQuery()
-                dosenId = Convert.ToInt32(cmd.LastInsertedId)
-            End Using
-
-            If dosenId = 0 Then
-                Using getCmd As New MySqlCommand("SELECT id FROM dosen WHERE nama = @nama LIMIT 1", connection)
-                    getCmd.Parameters.AddWithValue("@nama", s.Dosen)
-                    dosenId = Convert.ToInt32(getCmd.ExecuteScalar())
-                End Using
-            End If
-
-            Using cmd As New MySqlCommand(
-                "INSERT INTO mata_kuliah (nama, ruang, dosen_id) VALUES (@nama, @ruang, @dosenId)", connection)
-                cmd.Parameters.AddWithValue("@nama", s.Matkul)
-                cmd.Parameters.AddWithValue("@ruang", s.Ruang)
-                cmd.Parameters.AddWithValue("@dosenId", dosenId)
-                cmd.ExecuteNonQuery()
-            End Using
-        Next
     End Sub
 
     ' Returns the account's role, or Nothing when the credentials don't match.
@@ -639,9 +661,8 @@ Public Module DatabaseHelper
             Return RoleAdmin
         End If
 
-        ' Built-in dosen credentials fallback
-        If (String.Equals(username, "dosen", StringComparison.OrdinalIgnoreCase) OrElse
-            String.Equals(username, "0012038501", StringComparison.OrdinalIgnoreCase)) AndAlso
+        ' Built-in dosen credentials fallback (1 akun dosen)
+        If String.Equals(username, "dosen", StringComparison.OrdinalIgnoreCase) AndAlso
            password = "dosen123" Then
             Try
                 Using conn As New MySqlConnection(ConnectionString)
@@ -901,11 +922,46 @@ Public Module DatabaseHelper
 
     ' ---------- Admin: mata kuliah ----------
 
-    Public Function GetMataKuliah() As List(Of MataKuliahItem)
+    Public Function GetUserProfil(username As String) As UserProfilItem
+        Dim item As New UserProfilItem With {
+            .Username = If(username, "").Trim(),
+            .Nama = If(username, "").Trim(),
+            .Kelas = "TI 3C",
+            .Role = RoleMahasiswa
+        }
+
+        Using connection As New MySqlConnection(ConnectionString)
+            connection.Open()
+            EnsureSchema(connection)
+
+            Const query As String =
+                "SELECT username, COALESCE(NULLIF(TRIM(nama), ''), username) AS nama, " &
+                "COALESCE(NULLIF(TRIM(kelas), ''), 'TI 3C') AS kelas, role " &
+                "FROM users WHERE username = @u LIMIT 1"
+
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@u", item.Username)
+                Using reader As MySqlDataReader = cmd.ExecuteReader()
+                    If reader.Read() Then
+                        item.Username = reader.GetString("username")
+                        item.Nama = reader.GetString("nama")
+                        item.Kelas = reader.GetString("kelas")
+                        item.Role = reader.GetString("role")
+                    End If
+                End Using
+            End Using
+        End Using
+
+        Return item
+    End Function
+
+    Public Function GetMataKuliah(Optional kelasFilter As String = Nothing) As List(Of MataKuliahItem)
+        Dim filterKelas As String = If(kelasFilter, "").Trim()
         Const query As String =
-            "SELECT mk.id, mk.nama, mk.ruang, mk.dosen_id, d.nama AS dosen " &
+            "SELECT mk.id, mk.nama, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') AS kelas, mk.ruang, mk.dosen_id, d.nama AS dosen " &
             "FROM mata_kuliah mk " &
             "JOIN dosen d ON d.id = mk.dosen_id " &
+            "WHERE (@kelas = '' OR COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') = @kelas) " &
             "ORDER BY mk.nama"
 
         Dim items As New List(Of MataKuliahItem)
@@ -915,11 +971,13 @@ Public Module DatabaseHelper
             EnsureSchema(connection)
 
             Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@kelas", filterKelas)
                 Using reader As MySqlDataReader = command.ExecuteReader()
                     While reader.Read()
                         items.Add(New MataKuliahItem With {
                             .Id = reader.GetInt32("id"),
                             .Nama = reader.GetString("nama"),
+                            .Kelas = reader.GetString("kelas"),
                             .Ruang = If(reader.IsDBNull(reader.GetOrdinal("ruang")), "", reader.GetString("ruang")),
                             .DosenId = reader.GetInt32("dosen_id"),
                             .DosenNama = reader.GetString("dosen")
@@ -932,10 +990,11 @@ Public Module DatabaseHelper
         Return items
     End Function
 
-    Public Sub AddMataKuliah(nama As String, ruang As String, dosenId As Integer)
+    Public Sub AddMataKuliah(nama As String, ruang As String, dosenId As Integer, Optional kelas As String = "TI 3C")
         Execute(
-            "INSERT INTO mata_kuliah (nama, ruang, dosen_id) VALUES (@nama, @ruang, @dosen)",
+            "INSERT INTO mata_kuliah (nama, kelas, ruang, dosen_id) VALUES (@nama, @kelas, @ruang, @dosen)",
             ("@nama", nama),
+            ("@kelas", If(String.IsNullOrWhiteSpace(kelas), "TI 3C", kelas.Trim())),
             ("@ruang", NullIfEmpty(ruang)),
             ("@dosen", dosenId))
     End Sub
@@ -1056,11 +1115,11 @@ Public Module DatabaseHelper
 
     Public Function GetMataKuliahByDosen(dosenId As Integer) As List(Of MataKuliahItem)
         Const query As String =
-            "SELECT mk.id, mk.nama, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') AS kelas, mk.ruang, mk.dosen_id, d.nama AS dosen " &
+            "SELECT mk.id, mk.nama, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') AS kelas, mk.ruang, mk.dosen_id, d.nama AS dosen " &
             "FROM mata_kuliah mk " &
             "JOIN dosen d ON d.id = mk.dosen_id " &
             "WHERE mk.dosen_id = @dosenId " &
-            "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A'), mk.nama"
+            "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C'), mk.nama"
 
         Dim items As New List(Of MataKuliahItem)
 
@@ -1119,14 +1178,14 @@ Public Module DatabaseHelper
             ' Statistik per mata kuliah & kelas yang diampu dosen
             Const mkQuery As String =
                 "SELECT mk.id, mk.nama, mk.ruang, " &
-                "COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') AS kelas, " &
+                "COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') AS kelas, " &
                 "COUNT(p.username) AS sudah, " &
                 "COALESCE(AVG(p.nilai_rata_rata), 0) AS avg_skor " &
                 "FROM mata_kuliah mk " &
                 "LEFT JOIN edom_pengisian p ON p.mata_kuliah_id = mk.id " &
                 "WHERE mk.dosen_id = @dosenId " &
-                "GROUP BY mk.id, mk.nama, mk.ruang, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') " &
-                "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A'), mk.nama"
+                "GROUP BY mk.id, mk.nama, mk.ruang, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') " &
+                "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C'), mk.nama"
 
             Using cmd As New MySqlCommand(mkQuery, connection)
                 cmd.Parameters.AddWithValue("@dosenId", dosenId)
@@ -1188,7 +1247,7 @@ Public Module DatabaseHelper
                     "FROM edom_pengisian p " &
                     "JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
                     "WHERE mk.dosen_id = @dosenId " &
-                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas"
+                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') = @kelas"
 
                 Using cmd As New MySqlCommand(avgScoreQuery, connection)
                     cmd.Parameters.AddWithValue("@dosenId", dosenId)
@@ -1218,7 +1277,7 @@ Public Module DatabaseHelper
                     "JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
                     "LEFT JOIN users u ON u.username = p.username " &
                     "WHERE mk.dosen_id = @dosenId " &
-                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas " &
+                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') = @kelas " &
                     "ORDER BY p.diisi_pada DESC"
 
                 Using cmd As New MySqlCommand(feedbackQuery, connection)
@@ -1509,7 +1568,7 @@ Public Module DatabaseHelper
             "  JOIN edom_pengisian p ON p.id = j.pengisian_id " &
             "  JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
             "  WHERE mk.dosen_id = @dosenId " &
-            "    AND (@kelas = '' OR COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas)" &
+            "    AND (@kelas = '' OR COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') = @kelas)" &
             ") x ON x.pertanyaan_id = q.id " &
             "WHERE q.aktif = 1 " &
             "GROUP BY q.id, q.nomor, q.kompetensi, q.pertanyaan " &
@@ -1562,9 +1621,11 @@ Public Module DatabaseHelper
             "  p.diisi_pada, " &
             "  p.saran " &
             "FROM dosen d " &
-            "LEFT JOIN mata_kuliah mk ON mk.dosen_id = d.id " &
+            "JOIN mata_kuliah mk ON mk.dosen_id = d.id " &
+            "LEFT JOIN users u ON u.username = @username " &
             "LEFT JOIN edom_pengisian p ON p.mata_kuliah_id = mk.id AND p.username = @username " &
-            "ORDER BY d.nama ASC, mk.nama ASC"
+            "WHERE COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3C') = COALESCE(NULLIF(TRIM(u.kelas), ''), 'TI 3C') " &
+            "ORDER BY mk.nama ASC, d.nama ASC"
 
         Dim items As New List(Of EdomMahasiswaItem)
 
@@ -1808,6 +1869,13 @@ Public Module DatabaseHelper
     End Function
 
 End Module
+
+Public Class UserProfilItem
+    Public Property Username As String
+    Public Property Nama As String
+    Public Property Kelas As String
+    Public Property Role As String
+End Class
 
 Public Class ProgresMataKuliah
     Public Property Nama As String
