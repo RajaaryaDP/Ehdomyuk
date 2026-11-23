@@ -4,7 +4,7 @@ Imports System.Windows.Forms
 Public Class FormRincianButir
 
     Private ReadOnly _dosen As DosenItem
-    Private ReadOnly _mataKuliahId As Integer?
+    Private ReadOnly _kelasFilter As String
     Private ReadOnly _cakupan As String
 
     Private ReadOnly WarnaUtama As Color = Color.FromArgb(30, 59, 51)
@@ -12,11 +12,11 @@ Public Class FormRincianButir
     Private ReadOnly WarnaError As Color = Color.FromArgb(176, 42, 55)
     Private ReadOnly WarnaRedup As Color = Color.FromArgb(108, 117, 125)
 
-    Public Sub New(dosen As DosenItem, mataKuliahId As Integer?, cakupan As String)
+    Public Sub New(dosen As DosenItem, kelasFilter As String, cakupan As String)
         InitializeComponent()
 
         _dosen = dosen
-        _mataKuliahId = mataKuliahId
+        _kelasFilter = kelasFilter
         _cakupan = cakupan
 
         dashboard_dosen.StyleGrid(dgvButir)
@@ -40,8 +40,8 @@ Public Class FormRincianButir
         Dim hasil As List(Of RataRataButirItem)
         Try
             Dim dosenId As Integer = _dosen.Id
-            Dim mkId As Integer? = _mataKuliahId
-            hasil = Await Task.Run(Function() DatabaseHelper.GetRataRataPerButir(dosenId, mkId))
+            Dim kelas As String = _kelasFilter
+            hasil = Await Task.Run(Function() DatabaseHelper.GetRataRataPerButir(dosenId, kelas))
         Catch ex As Exception
             TampilkanKosong(DatabaseHelper.DescribeError(ex), isError:=True)
             lblRingkasan.Text = "Data tidak dapat dimuat."

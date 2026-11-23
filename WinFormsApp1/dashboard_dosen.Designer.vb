@@ -992,7 +992,7 @@ Partial Class dashboard_dosen
         ' colFMahasiswa
         ' 
         colFMahasiswa.FillWeight = 85.0F
-        colFMahasiswa.HeaderText = "Mahasiswa (NIM)"
+        colFMahasiswa.HeaderText = "Kelas"
         colFMahasiswa.MinimumWidth = 100
         colFMahasiswa.Name = "colFMahasiswa"
         colFMahasiswa.ReadOnly = True
@@ -1107,9 +1107,9 @@ Partial Class dashboard_dosen
         ' 
         ' colMkRuang
         ' 
-        colMkRuang.FillWeight = 70.0F
-        colMkRuang.HeaderText = "Ruang"
-        colMkRuang.MinimumWidth = 70
+        colMkRuang.FillWeight = 85.0F
+        colMkRuang.HeaderText = "Kelas / Ruang"
+        colMkRuang.MinimumWidth = 85
         colMkRuang.Name = "colMkRuang"
         colMkRuang.ReadOnly = True
 

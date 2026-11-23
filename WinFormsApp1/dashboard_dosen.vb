@@ -52,10 +52,10 @@ Public Class dashboard_dosen
             ' 2. Ambil daftar mata kuliah yang diajar oleh dosen ini
             currentMataKuliahList = Await Task.Run(Function() DatabaseHelper.GetMataKuliahByDosen(currentDosen.Id))
 
-            ' 3. Isi menu dropdown list mata kuliah
+            ' 3. Isi menu dropdown list kelas yang diajar
             PopulateDropdownMataKuliah()
 
-            ' 4. Ambil statistik hasil pengisian EDOM
+            ' 4. Ambil statistik hasil pengisian EDOM (default: seluruh kelas)
             Await LoadStatistikAsync(Nothing)
 
         Catch ex As Exception
@@ -67,17 +67,26 @@ Public Class dashboard_dosen
         isFiltering = True
         cmbMataKuliah.Items.Clear()
 
-        ' Item pertama: opsi melihat rekapitulasi semua mata kuliah yang diajar
+        ' Item pertama: opsi melihat rekapitulasi seluruh kelas yang diajar
         cmbMataKuliah.Items.Add(New MataKuliahComboItem With {
             .Id = 0,
-            .DisplayText = "-- Semua Mata Kuliah yang Diajar --"
+            .Kelas = "",
+            .DisplayText = "Seluruh Kelas"
         })
 
-        ' Tambahkan seluruh mata kuliah yang diampu oleh dosen
-        For Each mk In currentMataKuliahList
+        ' Tambahkan daftar kelas yang diajar oleh dosen
+        Dim daftarKelas As List(Of String) = currentMataKuliahList _
+            .Select(Function(mk) If(mk.Kelas, "").Trim()) _
+            .Where(Function(k) Not String.IsNullOrEmpty(k)) _
+            .Distinct(StringComparer.OrdinalIgnoreCase) _
+            .OrderBy(Function(k) k, StringComparer.OrdinalIgnoreCase) _
+            .ToList()
+
+        For Each k In daftarKelas
             cmbMataKuliah.Items.Add(New MataKuliahComboItem With {
-                .Id = mk.Id,
-                .DisplayText = If(String.IsNullOrWhiteSpace(mk.Ruang), mk.Nama, $"{mk.Nama} ({mk.Ruang})")
+                .Id = 0,
+                .Kelas = k,
+                .DisplayText = k
             })
         Next
 
@@ -85,14 +94,14 @@ Public Class dashboard_dosen
         isFiltering = False
     End Sub
 
-    Private Async Function LoadStatistikAsync(mataKuliahId As Integer?) As Task
+    Private Async Function LoadStatistikAsync(kelasFilter As String) As Task
         If loadingData OrElse currentDosen Is Nothing Then Return
         loadingData = True
         btnRefresh.Enabled = False
 
         Try
-            Dim stats As DosenEdomStatistik = Await Task.Run(Function() DatabaseHelper.GetStatistikEdomDosen(currentDosen.Id, mataKuliahId))
-            RenderStatistik(stats, mataKuliahId)
+            Dim stats As DosenEdomStatistik = Await Task.Run(Function() DatabaseHelper.GetStatistikEdomDosen(currentDosen.Id, kelasFilter))
+            RenderStatistik(stats, kelasFilter)
             lblLastUpdated.Text = $"Diperbarui pukul {DateTime.Now:HH.mm}"
             HideState()
         Catch ex As Exception
@@ -103,9 +112,14 @@ Public Class dashboard_dosen
         End Try
     End Function
 
-    Private Sub RenderStatistik(stats As DosenEdomStatistik, selectedMkId As Integer?)
+    Private Sub RenderStatistik(stats As DosenEdomStatistik, selectedKelas As String)
         ' 1. Kartu Ringkasan Metrik Pengisian EDOM
         lblTotalMahasiswa.Text = stats.TotalMahasiswa.ToString()
+        lblTotalSub.Text = If(
+            String.IsNullOrWhiteSpace(selectedKelas),
+            "Total mahasiswa yang diajar",
+            $"Total mahasiswa kelas {selectedKelas}"
+        )
         lblSudahMengisi.Text = stats.SudahMengisi.ToString()
         lblBelumMengisi.Text = stats.BelumMengisi.ToString()
         lblPersentase.Text = $"{stats.Persentase:0.0}%"
@@ -148,14 +162,14 @@ Public Class dashboard_dosen
         lblKepribadianVal.Text = stats.SkorKepribadian.ToString("0.00")
         lblSosialVal.Text = stats.SkorSosial.ToString("0.00")
 
-        ' 3. Tabel Detail Respon Pengisian & Feedback Mahasiswa
+        ' 3. Tabel Detail Respon Pengisian & Feedback Mahasiswa (Kolom Kelas menggantikan Mahasiswa NIM)
         dgvFeedback.Rows.Clear()
         Dim noF As Integer = 1
         For Each item In stats.DaftarFeedback
             Dim rowIndex As Integer = dgvFeedback.Rows.Add(
                 noF,
                 item.MataKuliah,
-                item.Username,
+                If(String.IsNullOrWhiteSpace(item.Kelas), "-", item.Kelas),
                 item.DiisiPada.ToString("dd MMM yyyy, HH:mm"),
                 item.NilaiRataRata.ToString("0.00"),
                 If(String.IsNullOrWhiteSpace(item.Saran), "-", item.Saran)
@@ -168,10 +182,15 @@ Public Class dashboard_dosen
         dgvMataKuliahDiajar.Rows.Clear()
         Dim noMk As Integer = 1
         For Each mk In stats.PerMataKuliah
+            Dim kelasRuang As String = If(
+                String.IsNullOrWhiteSpace(mk.Ruang) OrElse mk.Ruang = "-",
+                mk.Kelas,
+                $"{mk.Kelas} ({mk.Ruang})"
+            )
             Dim rowIndex As Integer = dgvMataKuliahDiajar.Rows.Add(
                 noMk,
                 mk.Nama,
-                mk.Ruang,
+                kelasRuang,
                 mk.TotalMahasiswa,
                 mk.Sudah,
                 mk.Belum,
@@ -179,14 +198,14 @@ Public Class dashboard_dosen
                 If(mk.RataRataSkor > 0, mk.RataRataSkor.ToString("0.00"), "-"),
                 mk.Status
             )
-            dgvMataKuliahDiajar.Rows(rowIndex).Tag = mk.Id
+            dgvMataKuliahDiajar.Rows(rowIndex).Tag = mk.Kelas
             noMk += 1
         Next
         dgvMataKuliahDiajar.ClearSelection()
 
         ' Update status label jika tidak ada data pengisian
         If stats.DaftarFeedback.Count = 0 Then
-            lblFeedbackSub.Text = "Belum ada mahasiswa yang mengisi EDOM untuk filter mata kuliah ini."
+            lblFeedbackSub.Text = "Belum ada mahasiswa yang mengisi EDOM untuk filter kelas ini."
         Else
             lblFeedbackSub.Text = $"Menampilkan {stats.DaftarFeedback.Count} respon evaluasi mahasiswa."
         End If
@@ -200,29 +219,29 @@ Public Class dashboard_dosen
         Dim selected = TryCast(cmbMataKuliah.SelectedItem, MataKuliahComboItem)
         If selected Is Nothing Then Return
 
-        Dim mkId As Integer? = If(selected.Id > 0, selected.Id, CType(Nothing, Integer?))
-        Await LoadStatistikAsync(mkId)
+        Dim kelasFilter As String = If(Not String.IsNullOrWhiteSpace(selected.Kelas), selected.Kelas, Nothing)
+        Await LoadStatistikAsync(kelasFilter)
     End Sub
 
     Private Async Sub btnRefresh_Click(sender As Object, e As EventArgs) Handles btnRefresh.Click
         Dim selected = TryCast(cmbMataKuliah.SelectedItem, MataKuliahComboItem)
-        Dim mkId As Integer? = If(selected IsNot Nothing AndAlso selected.Id > 0, selected.Id, CType(Nothing, Integer?))
-        Await LoadStatistikAsync(mkId)
+        Dim kelasFilter As String = If(selected IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(selected.Kelas), selected.Kelas, Nothing)
+        Await LoadStatistikAsync(kelasFilter)
     End Sub
 
     Private Async Sub btnRetry_Click(sender As Object, e As EventArgs) Handles btnRetry.Click
         Await LoadDashboardAsync()
     End Sub
 
-    ' Membuka rata-rata nilai setiap butir instrumen EDOM, mengikuti filter mata kuliah yang dipilih.
+    ' Membuka rata-rata nilai setiap butir instrumen EDOM, mengikuti filter kelas yang dipilih.
     Private Sub btnRincianButir_Click(sender As Object, e As EventArgs) Handles btnRincianButir.Click
         If currentDosen Is Nothing Then Return
 
         Dim selected = TryCast(cmbMataKuliah.SelectedItem, MataKuliahComboItem)
-        Dim mkId As Integer? = If(selected IsNot Nothing AndAlso selected.Id > 0, selected.Id, CType(Nothing, Integer?))
-        Dim cakupan As String = If(mkId.HasValue, selected.DisplayText, "Semua mata kuliah yang diajar")
+        Dim kelasFilter As String = If(selected IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(selected.Kelas), selected.Kelas, Nothing)
+        Dim cakupan As String = If(Not String.IsNullOrWhiteSpace(kelasFilter), $"Kelas {kelasFilter}", "Seluruh kelas yang diajar")
 
-        Using dlg As New FormRincianButir(currentDosen, mkId, cakupan)
+        Using dlg As New FormRincianButir(currentDosen, kelasFilter, cakupan)
             dlg.ShowDialog(Me)
         End Using
     End Sub
@@ -253,16 +272,15 @@ Public Class dashboard_dosen
         End If
     End Sub
 
-    ' Jika memilih baris di tabel mata kuliah, dropdown otomatis menyesuaikan
+    ' Jika memilih baris di tabel mata kuliah, dropdown otomatis menyesuaikan ke kelas tersebut
     Private Sub dgvMataKuliahDiajar_CellDoubleClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvMataKuliahDiajar.CellDoubleClick
         If e.RowIndex < 0 Then Return
 
-        Dim mkId As Object = dgvMataKuliahDiajar.Rows(e.RowIndex).Tag
-        If mkId IsNot Nothing Then
-            Dim targetId As Integer = Convert.ToInt32(mkId)
+        Dim targetKelas As String = TryCast(dgvMataKuliahDiajar.Rows(e.RowIndex).Tag, String)
+        If Not String.IsNullOrWhiteSpace(targetKelas) Then
             For i As Integer = 0 To cmbMataKuliah.Items.Count - 1
                 Dim item = TryCast(cmbMataKuliah.Items(i), MataKuliahComboItem)
-                If item IsNot Nothing AndAlso item.Id = targetId Then
+                If item IsNot Nothing AndAlso String.Equals(item.Kelas, targetKelas, StringComparison.OrdinalIgnoreCase) Then
                     cmbMataKuliah.SelectedIndex = i
                     SwitchSection(isStatistik:=True)
                     Exit For
@@ -356,9 +374,10 @@ Public Class dashboard_dosen
 
 End Class
 
-' Helper Item untuk Dropdown ComboBox Mata Kuliah
+' Helper Item untuk Dropdown ComboBox Kelas / Mata Kuliah
 Public Class MataKuliahComboItem
     Public Property Id As Integer
+    Public Property Kelas As String
     Public Property DisplayText As String
 
     Public Overrides Function ToString() As String

@@ -99,6 +99,21 @@ Public Module DatabaseHelper
                     cmd.ExecuteNonQuery()
                 End Using
             End If
+
+            Dim hasUserKelasColumn As Boolean
+            Using cmd As New MySqlCommand("SHOW COLUMNS FROM users LIKE 'kelas'", connection)
+                Using reader As MySqlDataReader = cmd.ExecuteReader()
+                    hasUserKelasColumn = reader.HasRows
+                End Using
+            End Using
+
+            If Not hasUserKelasColumn Then
+                Using cmd As New MySqlCommand(
+                    "ALTER TABLE users ADD COLUMN kelas VARCHAR(20) NULL",
+                    connection)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End If
         Catch
         End Try
 
@@ -116,12 +131,28 @@ Public Module DatabaseHelper
                 "CREATE TABLE IF NOT EXISTS mata_kuliah (" &
                 "  id INT AUTO_INCREMENT PRIMARY KEY," &
                 "  nama VARCHAR(100) NOT NULL," &
+                "  kelas VARCHAR(20) NULL DEFAULT 'TI 3A'," &
                 "  ruang VARCHAR(20) NULL," &
                 "  dosen_id INT NOT NULL," &
                 "  CONSTRAINT fk_mata_kuliah_dosen FOREIGN KEY (dosen_id) REFERENCES dosen (id) ON DELETE RESTRICT" &
                 ")", connection)
                 cmd.ExecuteNonQuery()
             End Using
+
+            Dim hasMkKelasColumn As Boolean
+            Using cmd As New MySqlCommand("SHOW COLUMNS FROM mata_kuliah LIKE 'kelas'", connection)
+                Using reader As MySqlDataReader = cmd.ExecuteReader()
+                    hasMkKelasColumn = reader.HasRows
+                End Using
+            End Using
+
+            If Not hasMkKelasColumn Then
+                Using cmd As New MySqlCommand(
+                    "ALTER TABLE mata_kuliah ADD COLUMN kelas VARCHAR(20) NULL DEFAULT 'TI 3A'",
+                    connection)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End If
 
             Using cmd As New MySqlCommand(
                 "CREATE TABLE IF NOT EXISTS edom_pengisian (" &
@@ -172,12 +203,30 @@ Public Module DatabaseHelper
                 SeedInitialCourses(connection)
             End If
 
-            ' Ensure default accounts
+            ' Ensure default accounts & student class memberships (TI 3A: 6, TI 3B: 5, TI 3C: 5)
             EnsureAccount(connection, "admin", "admin123", RoleAdmin)
-            EnsureAccount(connection, "2507411026", "12345", RoleMahasiswa)
-            EnsureAccount(connection, "2507411001", "12345", RoleMahasiswa)
-            EnsureAccount(connection, "2507411002", "12345", RoleMahasiswa)
-            EnsureAccount(connection, "2507411003", "12345", RoleMahasiswa)
+            EnsureMahasiswaAccount(connection, "2507411001", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411002", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411003", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411004", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411006", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411007", "12345", "TI 3A")
+            EnsureMahasiswaAccount(connection, "2507411005", "12345", "TI 3B")
+            EnsureMahasiswaAccount(connection, "2507411008", "12345", "TI 3B")
+            EnsureMahasiswaAccount(connection, "2507411009", "12345", "TI 3B")
+            EnsureMahasiswaAccount(connection, "2507411010", "12345", "TI 3B")
+            EnsureMahasiswaAccount(connection, "2507411011", "12345", "TI 3B")
+            EnsureMahasiswaAccount(connection, "2507411026", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411012", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411013", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411014", "12345", "TI 3C")
+            EnsureMahasiswaAccount(connection, "2507411015", "12345", "TI 3C")
+
+            Using cmd As New MySqlCommand(
+                "UPDATE users SET kelas = 'TI 3C' WHERE role = 'mahasiswa' AND (kelas IS NULL OR TRIM(kelas) = '')",
+                connection)
+                cmd.ExecuteNonQuery()
+            End Using
 
             ' Link default 'dosen' to Asep Taufik, M.Kom.
             Dim asepId As Integer = 0
@@ -192,9 +241,13 @@ Public Module DatabaseHelper
             EnsureDosenAccount(connection, "0012038501", "dosen123", RoleDosen, asepId)
 
             If asepId > 0 Then
-                EnsureCourseExists(connection, "Pemrograman Berorientasi Objek", "AA 304", asepId)
-                EnsureCourseExists(connection, "Workshop Aplikasi Enterprise", "Lab RPL 1", asepId)
+                EnsureCourseExists(connection, "Pemrograman Web Lanjut", "AA 301", asepId, "TI 3A")
+                EnsureCourseExists(connection, "Pemrograman Berorientasi Objek", "AA 304", asepId, "TI 3B")
+                EnsureCourseExists(connection, "Workshop Aplikasi Enterprise", "Lab RPL 1", asepId, "TI 3C")
+                EnsureCourseKelasDefaults(connection)
                 EnsureSampleEdomFeedback(connection)
+            Else
+                EnsureCourseKelasDefaults(connection)
             End If
         Catch
         End Try
@@ -381,7 +434,33 @@ Public Module DatabaseHelper
         End If
     End Sub
 
-    Private Sub EnsureCourseExists(connection As MySqlConnection, namaMk As String, ruang As String, dosenId As Integer)
+    Private Sub EnsureMahasiswaAccount(connection As MySqlConnection, username As String, password As String, kelas As String)
+        Dim exists As Integer
+        Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM users WHERE username = @u", connection)
+            checkCmd.Parameters.AddWithValue("@u", username)
+            exists = Convert.ToInt32(checkCmd.ExecuteScalar())
+        End Using
+
+        If exists = 0 Then
+            Using insertCmd As New MySqlCommand(
+                "INSERT INTO users (username, password, role, kelas) VALUES (@u, @p, @r, @k)", connection)
+                insertCmd.Parameters.AddWithValue("@u", username)
+                insertCmd.Parameters.AddWithValue("@p", password)
+                insertCmd.Parameters.AddWithValue("@r", RoleMahasiswa)
+                insertCmd.Parameters.AddWithValue("@k", kelas)
+                insertCmd.ExecuteNonQuery()
+            End Using
+        Else
+            Using updateCmd As New MySqlCommand(
+                "UPDATE users SET kelas = @k WHERE username = @u AND (kelas IS NULL OR TRIM(kelas) = '')", connection)
+                updateCmd.Parameters.AddWithValue("@k", kelas)
+                updateCmd.Parameters.AddWithValue("@u", username)
+                updateCmd.ExecuteNonQuery()
+            End Using
+        End If
+    End Sub
+
+    Private Sub EnsureCourseExists(connection As MySqlConnection, namaMk As String, ruang As String, dosenId As Integer, Optional kelas As String = "TI 3A")
         Dim exists As Integer
         Using checkCmd As New MySqlCommand("SELECT COUNT(*) FROM mata_kuliah WHERE nama = @n", connection)
             checkCmd.Parameters.AddWithValue("@n", namaMk)
@@ -390,13 +469,47 @@ Public Module DatabaseHelper
 
         If exists = 0 Then
             Using insertCmd As New MySqlCommand(
-                "INSERT INTO mata_kuliah (nama, ruang, dosen_id) VALUES (@n, @r, @d)", connection)
+                "INSERT INTO mata_kuliah (nama, kelas, ruang, dosen_id) VALUES (@n, @k, @r, @d)", connection)
                 insertCmd.Parameters.AddWithValue("@n", namaMk)
+                insertCmd.Parameters.AddWithValue("@k", kelas)
                 insertCmd.Parameters.AddWithValue("@r", ruang)
                 insertCmd.Parameters.AddWithValue("@d", dosenId)
                 insertCmd.ExecuteNonQuery()
             End Using
+        Else
+            Using updateCmd As New MySqlCommand(
+                "UPDATE mata_kuliah SET kelas = @k WHERE nama = @n AND (kelas IS NULL OR TRIM(kelas) = '')", connection)
+                updateCmd.Parameters.AddWithValue("@k", kelas)
+                updateCmd.Parameters.AddWithValue("@n", namaMk)
+                updateCmd.ExecuteNonQuery()
+            End Using
         End If
+    End Sub
+
+    Private Sub EnsureCourseKelasDefaults(connection As MySqlConnection)
+        Dim mappings As (Nama As String, Kelas As String)() = {
+            ("Pemrograman Web Lanjut", "TI 3A"),
+            ("Pemrograman Berorientasi Objek", "TI 3B"),
+            ("Workshop Aplikasi Enterprise", "TI 3C"),
+            ("Pemrograman Basis Data", "TI 3A"),
+            ("Administrasi Basis Data", "TI 3B"),
+            ("Analisis Sistem", "TI 3C"),
+            ("Rekayasa Perangkat Lunak", "TI 3C")
+        }
+
+        For Each m In mappings
+            Using cmd As New MySqlCommand(
+                "UPDATE mata_kuliah SET kelas = @k WHERE nama = @n", connection)
+                cmd.Parameters.AddWithValue("@k", m.Kelas)
+                cmd.Parameters.AddWithValue("@n", m.Nama)
+                cmd.ExecuteNonQuery()
+            End Using
+        Next
+
+        Using cmd As New MySqlCommand(
+            "UPDATE mata_kuliah SET kelas = 'TI 3A' WHERE kelas IS NULL OR TRIM(kelas) = ''", connection)
+            cmd.ExecuteNonQuery()
+        End Using
     End Sub
 
     Private Sub EnsureSampleEdomFeedback(connection As MySqlConnection)
@@ -416,11 +529,49 @@ Public Module DatabaseHelper
                 Using insertCmd As New MySqlCommand(
                     "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
                     "VALUES " &
-                    "('2507411026', @id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.'), " &
-                    "('2507411001', @id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.'), " &
-                    "('2507411002', @id, 4.20, 4.40, 4.50, 4.30, 4.35, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.')",
+                    "('2507411001', @id, 4.80, 4.90, 5.00, 4.70, 4.85, 'Penyampaian materi sangat interaktif dan mudah dipahami. Contoh coding langsung relevan dengan industri.'), " &
+                    "('2507411002', @id, 4.50, 4.60, 4.70, 4.60, 4.60, 'Dosen sangat ramah dan sabar membimbing saat mahasiswa mengalami error saat praktikum.'), " &
+                    "('2507411003', @id, 4.20, 4.40, 4.50, 4.30, 4.35, 'Modul dan slide presentasi lengkap, penjelasan tugas terstruktur dengan baik.'), " &
+                    "('2507411004', @id, 4.70, 4.80, 4.80, 4.70, 4.75, 'Waktu pembelajaran dimanfaatkan sangat efektif, materi selalu update.')",
                     connection)
                     insertCmd.Parameters.AddWithValue("@id", mkIdWeb)
+                    insertCmd.ExecuteNonQuery()
+                End Using
+            End If
+
+            Dim mkIdPbo As Integer = 0
+            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'Pemrograman Berorientasi Objek' LIMIT 1", connection)
+                Dim res = cmd.ExecuteScalar()
+                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdPbo = Convert.ToInt32(res)
+            End Using
+
+            If mkIdPbo > 0 Then
+                Using insertCmd As New MySqlCommand(
+                    "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
+                    "VALUES " &
+                    "('2507411005', @id, 4.60, 4.70, 4.80, 4.50, 4.65, 'Konsep OOP seperti polymorphism dan encapsulation dijelaskan dengan analogi yang sangat mudah dimengerti.'), " &
+                    "('2507411008', @id, 4.50, 4.60, 4.50, 4.60, 4.55, 'Tugas praktikum sangat melatih logika pemrograman berorientasi objek.'), " &
+                    "('2507411009', @id, 4.70, 4.80, 4.90, 4.80, 4.80, 'Kuis dan feedback latihan selalu dibahas secara transparan di kelas.')",
+                    connection)
+                    insertCmd.Parameters.AddWithValue("@id", mkIdPbo)
+                    insertCmd.ExecuteNonQuery()
+                End Using
+            End If
+
+            Dim mkIdWae As Integer = 0
+            Using cmd As New MySqlCommand("SELECT id FROM mata_kuliah WHERE nama = 'Workshop Aplikasi Enterprise' LIMIT 1", connection)
+                Dim res = cmd.ExecuteScalar()
+                If res IsNot Nothing AndAlso res IsNot DBNull.Value Then mkIdWae = Convert.ToInt32(res)
+            End Using
+
+            If mkIdWae > 0 Then
+                Using insertCmd As New MySqlCommand(
+                    "INSERT INTO edom_pengisian (username, mata_kuliah_id, skor_pedagogik, skor_profesional, skor_kepribadian, skor_sosial, nilai_rata_rata, saran) " &
+                    "VALUES " &
+                    "('2507411026', @id, 4.80, 4.90, 4.80, 4.90, 4.85, 'Pengalaman proyek riil sangat berharga untuk persiapan magang dan tugas akhir.'), " &
+                    "('2507411012', @id, 4.60, 4.70, 4.70, 4.60, 4.65, 'Bimbingan arsitektur software sangat detail.')",
+                    connection)
+                    insertCmd.Parameters.AddWithValue("@id", mkIdWae)
                     insertCmd.ExecuteNonQuery()
                 End Using
             End If
@@ -901,11 +1052,11 @@ Public Module DatabaseHelper
 
     Public Function GetMataKuliahByDosen(dosenId As Integer) As List(Of MataKuliahItem)
         Const query As String =
-            "SELECT mk.id, mk.nama, mk.ruang, mk.dosen_id, d.nama AS dosen " &
+            "SELECT mk.id, mk.nama, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') AS kelas, mk.ruang, mk.dosen_id, d.nama AS dosen " &
             "FROM mata_kuliah mk " &
             "JOIN dosen d ON d.id = mk.dosen_id " &
             "WHERE mk.dosen_id = @dosenId " &
-            "ORDER BY mk.nama"
+            "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A'), mk.nama"
 
         Dim items As New List(Of MataKuliahItem)
 
@@ -920,6 +1071,7 @@ Public Module DatabaseHelper
                         items.Add(New MataKuliahItem With {
                             .Id = reader.GetInt32("id"),
                             .Nama = reader.GetString("nama"),
+                            .Kelas = reader.GetString("kelas"),
                             .Ruang = If(reader.IsDBNull(reader.GetOrdinal("ruang")), "", reader.GetString("ruang")),
                             .DosenId = reader.GetInt32("dosen_id"),
                             .DosenNama = reader.GetString("dosen")
@@ -932,35 +1084,45 @@ Public Module DatabaseHelper
         Return items
     End Function
 
-    ' ---------- Dosen: Statistik Hasil Pengisian EDOM ----------
+    ' ---------- Dosen: Statistik Hasil Pengisian EDOM (Berbasis Kelas) ----------
 
-    Public Function GetStatistikEdomDosen(dosenId As Integer, Optional mataKuliahId As Integer? = Nothing) As DosenEdomStatistik
+    Public Function GetStatistikEdomDosen(dosenId As Integer, Optional kelasFilter As String = Nothing) As DosenEdomStatistik
         Dim stats As New DosenEdomStatistik
+        Dim filterKelas As String = If(kelasFilter, "").Trim()
 
         Using connection As New MySqlConnection(ConnectionString)
             connection.Open()
             EnsureSchema(connection)
 
-            ' Total Mahasiswa terdaftar
-            Const totalMahasiswaQuery As String = "SELECT COUNT(*) FROM users WHERE role = 'mahasiswa'"
-            Using cmd As New MySqlCommand(totalMahasiswaQuery, connection)
-                Try
-                    stats.TotalMahasiswa = Convert.ToInt32(cmd.ExecuteScalar())
-                Catch
-                    stats.TotalMahasiswa = 0
-                End Try
+            ' Hitung jumlah mahasiswa terdaftar per kelas
+            Dim mahasiswaPerKelas As New Dictionary(Of String, Integer)(StringComparer.OrdinalIgnoreCase)
+            Const mhsPerKelasQuery As String =
+                "SELECT COALESCE(NULLIF(TRIM(kelas), ''), 'TI 3C') AS kelas, COUNT(*) AS jumlah " &
+                "FROM users " &
+                "WHERE role = 'mahasiswa' " &
+                "GROUP BY COALESCE(NULLIF(TRIM(kelas), ''), 'TI 3C')"
+
+            Using cmd As New MySqlCommand(mhsPerKelasQuery, connection)
+                Using reader As MySqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim k As String = reader.GetString("kelas")
+                        Dim jml As Integer = Convert.ToInt32(reader("jumlah"))
+                        mahasiswaPerKelas(k) = jml
+                    End While
+                End Using
             End Using
 
-            ' Statistik per mata kuliah yang diampu dosen
+            ' Statistik per mata kuliah & kelas yang diampu dosen
             Const mkQuery As String =
                 "SELECT mk.id, mk.nama, mk.ruang, " &
+                "COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') AS kelas, " &
                 "COUNT(p.username) AS sudah, " &
                 "COALESCE(AVG(p.nilai_rata_rata), 0) AS avg_skor " &
                 "FROM mata_kuliah mk " &
                 "LEFT JOIN edom_pengisian p ON p.mata_kuliah_id = mk.id " &
                 "WHERE mk.dosen_id = @dosenId " &
-                "GROUP BY mk.id, mk.nama, mk.ruang " &
-                "ORDER BY mk.nama"
+                "GROUP BY mk.id, mk.nama, mk.ruang, COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') " &
+                "ORDER BY COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A'), mk.nama"
 
             Using cmd As New MySqlCommand(mkQuery, connection)
                 cmd.Parameters.AddWithValue("@dosenId", dosenId)
@@ -968,11 +1130,13 @@ Public Module DatabaseHelper
                     While reader.Read()
                         Dim mkId As Integer = reader.GetInt32("id")
                         Dim mkNama As String = reader.GetString("nama")
+                        Dim mkKelas As String = reader.GetString("kelas")
                         Dim mkRuang As String = If(reader.IsDBNull(reader.GetOrdinal("ruang")), "-", reader.GetString("ruang"))
+                        Dim totalMhsKelas As Integer = If(mahasiswaPerKelas.ContainsKey(mkKelas), mahasiswaPerKelas(mkKelas), 0)
                         Dim sudah As Integer = Convert.ToInt32(reader("sudah"))
                         Dim avgSkor As Double = Convert.ToDouble(reader("avg_skor"))
-                        Dim belum As Integer = Math.Max(0, stats.TotalMahasiswa - sudah)
-                        Dim persen As Double = If(stats.TotalMahasiswa > 0, (CDbl(sudah) / stats.TotalMahasiswa) * 100, 0)
+                        Dim belum As Integer = Math.Max(0, totalMhsKelas - sudah)
+                        Dim persen As Double = If(totalMhsKelas > 0, (CDbl(sudah) / totalMhsKelas) * 100, 0)
 
                         Dim status As String = "Belum Ada Pengisian"
                         If persen >= 75 Then
@@ -986,8 +1150,9 @@ Public Module DatabaseHelper
                         stats.PerMataKuliah.Add(New DosenMkStatistik With {
                             .Id = mkId,
                             .Nama = mkNama,
+                            .Kelas = mkKelas,
                             .Ruang = mkRuang,
-                            .TotalMahasiswa = stats.TotalMahasiswa,
+                            .TotalMahasiswa = totalMhsKelas,
                             .Sudah = sudah,
                             .Belum = belum,
                             .Persentase = Math.Round(persen, 1),
@@ -998,27 +1163,32 @@ Public Module DatabaseHelper
                 End Using
             End Using
 
-            If mataKuliahId.HasValue AndAlso mataKuliahId.Value > 0 Then
-                ' Filter spesifik 1 mata kuliah
-                Dim selectedMk = stats.PerMataKuliah.FirstOrDefault(Function(m) m.Id = mataKuliahId.Value)
-                If selectedMk IsNot Nothing Then
-                    stats.SudahMengisi = selectedMk.Sudah
-                    stats.BelumMengisi = selectedMk.Belum
-                    stats.Persentase = selectedMk.Persentase
-                End If
+            If Not String.IsNullOrEmpty(filterKelas) Then
+                ' Filter spesifik 1 kelas (mis. TI 3C)
+                Dim mkDiKelas = stats.PerMataKuliah.Where(
+                    Function(m) String.Equals(m.Kelas, filterKelas, StringComparison.OrdinalIgnoreCase)
+                ).ToList()
+
+                stats.TotalMahasiswa = If(mahasiswaPerKelas.ContainsKey(filterKelas), mahasiswaPerKelas(filterKelas), 0)
+                stats.SudahMengisi = mkDiKelas.Sum(Function(m) m.Sudah)
+                stats.BelumMengisi = Math.Max(0, stats.TotalMahasiswa - stats.SudahMengisi)
+                stats.Persentase = If(stats.TotalMahasiswa > 0, Math.Round((CDbl(stats.SudahMengisi) / stats.TotalMahasiswa) * 100, 1), 0)
 
                 Const avgScoreQuery As String =
                     "SELECT " &
-                    "  COALESCE(AVG(nilai_rata_rata), 0) AS avg_total, " &
-                    "  COALESCE(AVG(skor_pedagogik), 0) AS avg_pedagogik, " &
-                    "  COALESCE(AVG(skor_profesional), 0) AS avg_profesional, " &
-                    "  COALESCE(AVG(skor_kepribadian), 0) AS avg_kepribadian, " &
-                    "  COALESCE(AVG(skor_sosial), 0) AS avg_sosial " &
-                    "FROM edom_pengisian " &
-                    "WHERE mata_kuliah_id = @mkId"
+                    "  COALESCE(AVG(p.nilai_rata_rata), 0) AS avg_total, " &
+                    "  COALESCE(AVG(p.skor_pedagogik), 0) AS avg_pedagogik, " &
+                    "  COALESCE(AVG(p.skor_profesional), 0) AS avg_profesional, " &
+                    "  COALESCE(AVG(p.skor_kepribadian), 0) AS avg_kepribadian, " &
+                    "  COALESCE(AVG(p.skor_sosial), 0) AS avg_sosial " &
+                    "FROM edom_pengisian p " &
+                    "JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
+                    "WHERE mk.dosen_id = @dosenId " &
+                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas"
 
                 Using cmd As New MySqlCommand(avgScoreQuery, connection)
-                    cmd.Parameters.AddWithValue("@mkId", mataKuliahId.Value)
+                    cmd.Parameters.AddWithValue("@dosenId", dosenId)
+                    cmd.Parameters.AddWithValue("@kelas", filterKelas)
                     Using reader As MySqlDataReader = cmd.ExecuteReader()
                         If reader.Read() Then
                             stats.RataRataSkor = Math.Round(Convert.ToDouble(reader("avg_total")), 2)
@@ -1031,7 +1201,9 @@ Public Module DatabaseHelper
                 End Using
 
                 Const feedbackQuery As String =
-                    "SELECT p.id, p.username, mk.nama AS mata_kuliah, p.diisi_pada, " &
+                    "SELECT p.id, p.username, mk.nama AS mata_kuliah, " &
+                    "COALESCE(NULLIF(TRIM(mk.kelas), ''), NULLIF(TRIM(u.kelas), ''), '-') AS kelas, " &
+                    "p.diisi_pada, " &
                     "COALESCE(p.nilai_rata_rata, 0) AS nilai_rata_rata, " &
                     "COALESCE(p.skor_pedagogik, 0) AS skor_pedagogik, " &
                     "COALESCE(p.skor_profesional, 0) AS skor_profesional, " &
@@ -1040,16 +1212,20 @@ Public Module DatabaseHelper
                     "p.saran " &
                     "FROM edom_pengisian p " &
                     "JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
-                    "WHERE p.mata_kuliah_id = @mkId " &
+                    "LEFT JOIN users u ON u.username = p.username " &
+                    "WHERE mk.dosen_id = @dosenId " &
+                    "  AND COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas " &
                     "ORDER BY p.diisi_pada DESC"
 
                 Using cmd As New MySqlCommand(feedbackQuery, connection)
-                    cmd.Parameters.AddWithValue("@mkId", mataKuliahId.Value)
+                    cmd.Parameters.AddWithValue("@dosenId", dosenId)
+                    cmd.Parameters.AddWithValue("@kelas", filterKelas)
                     Using reader As MySqlDataReader = cmd.ExecuteReader()
                         While reader.Read()
                             stats.DaftarFeedback.Add(New EdomFeedbackItem With {
                                 .Id = reader.GetInt32("id"),
                                 .Username = reader.GetString("username"),
+                                .Kelas = reader.GetString("kelas"),
                                 .MataKuliah = reader.GetString("mata_kuliah"),
                                 .DiisiPada = reader.GetDateTime("diisi_pada"),
                                 .NilaiRataRata = Math.Round(Convert.ToDouble(reader("nilai_rata_rata")), 2),
@@ -1063,12 +1239,22 @@ Public Module DatabaseHelper
                     End Using
                 End Using
             Else
-                ' Agregasi semua mata kuliah yang diajar dosen ini
-                Dim totalTarget As Integer = stats.TotalMahasiswa * stats.PerMataKuliah.Count
+                ' Agregasi seluruh kelas yang diajar dosen ini
+                Dim kelasDiajar As List(Of String) = stats.PerMataKuliah _
+                    .Select(Function(m) m.Kelas) _
+                    .Where(Function(k) Not String.IsNullOrWhiteSpace(k)) _
+                    .Distinct(StringComparer.OrdinalIgnoreCase) _
+                    .ToList()
+
+                Dim totalMhsDiajar As Integer = kelasDiajar.Sum(
+                    Function(k) If(mahasiswaPerKelas.ContainsKey(k), mahasiswaPerKelas(k), 0)
+                )
                 Dim totalSudah As Integer = stats.PerMataKuliah.Sum(Function(m) m.Sudah)
+
+                stats.TotalMahasiswa = totalMhsDiajar
                 stats.SudahMengisi = totalSudah
-                stats.BelumMengisi = Math.Max(0, totalTarget - totalSudah)
-                stats.Persentase = If(totalTarget > 0, Math.Round((CDbl(totalSudah) / totalTarget) * 100, 1), 0)
+                stats.BelumMengisi = Math.Max(0, totalMhsDiajar - totalSudah)
+                stats.Persentase = If(totalMhsDiajar > 0, Math.Round((CDbl(totalSudah) / totalMhsDiajar) * 100, 1), 0)
 
                 Const avgAllScoreQuery As String =
                     "SELECT " &
@@ -1095,7 +1281,9 @@ Public Module DatabaseHelper
                 End Using
 
                 Const feedbackAllQuery As String =
-                    "SELECT p.id, p.username, mk.nama AS mata_kuliah, p.diisi_pada, " &
+                    "SELECT p.id, p.username, mk.nama AS mata_kuliah, " &
+                    "COALESCE(NULLIF(TRIM(mk.kelas), ''), NULLIF(TRIM(u.kelas), ''), '-') AS kelas, " &
+                    "p.diisi_pada, " &
                     "COALESCE(p.nilai_rata_rata, 0) AS nilai_rata_rata, " &
                     "COALESCE(p.skor_pedagogik, 0) AS skor_pedagogik, " &
                     "COALESCE(p.skor_profesional, 0) AS skor_profesional, " &
@@ -1104,6 +1292,7 @@ Public Module DatabaseHelper
                     "p.saran " &
                     "FROM edom_pengisian p " &
                     "JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
+                    "LEFT JOIN users u ON u.username = p.username " &
                     "WHERE mk.dosen_id = @dosenId " &
                     "ORDER BY p.diisi_pada DESC"
 
@@ -1114,6 +1303,7 @@ Public Module DatabaseHelper
                             stats.DaftarFeedback.Add(New EdomFeedbackItem With {
                                 .Id = reader.GetInt32("id"),
                                 .Username = reader.GetString("username"),
+                                .Kelas = reader.GetString("kelas"),
                                 .MataKuliah = reader.GetString("mata_kuliah"),
                                 .DiisiPada = reader.GetDateTime("diisi_pada"),
                                 .NilaiRataRata = Math.Round(Convert.ToDouble(reader("nilai_rata_rata")), 2),
@@ -1132,9 +1322,10 @@ Public Module DatabaseHelper
         Return stats
     End Function
 
-    ' Rata-rata nilai setiap butir instrumen untuk seorang dosen. mataKuliahId kosong/0 = semua mata kuliah dosen.
+    ' Rata-rata nilai setiap butir instrumen untuk seorang dosen. kelasFilter kosong = seluruh kelas yang diajar dosen.
     ' Hanya pengisian yang memiliki jawaban per butir (edom_jawaban) yang ikut dihitung.
-    Public Function GetRataRataPerButir(dosenId As Integer, Optional mataKuliahId As Integer? = Nothing) As List(Of RataRataButirItem)
+    Public Function GetRataRataPerButir(dosenId As Integer, Optional kelasFilter As String = Nothing) As List(Of RataRataButirItem)
+        Dim filterKelas As String = If(kelasFilter, "").Trim()
         Const query As String =
             "SELECT q.id, q.nomor, q.kompetensi, q.pertanyaan, " &
             "  COUNT(x.nilai) AS responden, " &
@@ -1145,7 +1336,8 @@ Public Module DatabaseHelper
             "  FROM edom_jawaban j " &
             "  JOIN edom_pengisian p ON p.id = j.pengisian_id " &
             "  JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id " &
-            "  WHERE mk.dosen_id = @dosenId AND (@mkId = 0 OR mk.id = @mkId)" &
+            "  WHERE mk.dosen_id = @dosenId " &
+            "    AND (@kelas = '' OR COALESCE(NULLIF(TRIM(mk.kelas), ''), 'TI 3A') = @kelas)" &
             ") x ON x.pertanyaan_id = q.id " &
             "WHERE q.aktif = 1 " &
             "GROUP BY q.id, q.nomor, q.kompetensi, q.pertanyaan " &
@@ -1159,7 +1351,7 @@ Public Module DatabaseHelper
 
             Using command As New MySqlCommand(query, connection)
                 command.Parameters.AddWithValue("@dosenId", dosenId)
-                command.Parameters.AddWithValue("@mkId", If(mataKuliahId.HasValue, mataKuliahId.Value, 0))
+                command.Parameters.AddWithValue("@kelas", filterKelas)
                 Using reader As MySqlDataReader = command.ExecuteReader()
                     While reader.Read()
                         items.Add(New RataRataButirItem With {
@@ -1470,6 +1662,7 @@ End Class
 Public Class MataKuliahItem
     Public Property Id As Integer
     Public Property Nama As String
+    Public Property Kelas As String
     Public Property Ruang As String
     Public Property DosenId As Integer
     Public Property DosenNama As String
@@ -1482,6 +1675,7 @@ End Class
 Public Class DosenMkStatistik
     Public Property Id As Integer
     Public Property Nama As String
+    Public Property Kelas As String
     Public Property Ruang As String
     Public Property TotalMahasiswa As Integer
     Public Property Sudah As Integer
@@ -1494,6 +1688,7 @@ End Class
 Public Class EdomFeedbackItem
     Public Property Id As Integer
     Public Property Username As String
+    Public Property Kelas As String
     Public Property MataKuliah As String
     Public Property DiisiPada As DateTime
     Public Property NilaiRataRata As Double

@@ -16,12 +16,13 @@ CREATE TABLE IF NOT EXISTS `dosen` (
     UNIQUE KEY `uq_dosen_nidn` (`nidn`)
 ) ENGINE=InnoDB;
 
--- 2. Tabel Users (Mendukung role mahasiswa, admin, dosen)
+-- 2. Tabel Users (Mendukung role mahasiswa, admin, dosen, serta kelas mahasiswa)
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `username` VARCHAR(50) NOT NULL,
     `password` VARCHAR(255) NOT NULL,
     `role` ENUM('mahasiswa', 'admin', 'dosen') NOT NULL DEFAULT 'mahasiswa',
+    `kelas` VARCHAR(20) NULL,
     `dosen_id` INT UNSIGNED NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_users_username` (`username`),
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 CREATE TABLE IF NOT EXISTS `mata_kuliah` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `nama` VARCHAR(100) NOT NULL,
+    `kelas` VARCHAR(20) NULL DEFAULT 'TI 3A',
     `ruang` VARCHAR(20) NULL,
     `dosen_id` INT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`),
@@ -115,44 +117,44 @@ ON DUPLICATE KEY UPDATE
     `nama` = VALUES(`nama`);
 
 -- ============================================================================
--- DATA MATA KULIAH (Setiap dosen memiliki mata kuliah yang diajar)
+-- DATA MATA KULIAH (Setiap dosen memiliki mata kuliah dan kelas yang diajar)
 -- ============================================================================
 -- Asep Taufik, M.Kom.
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Web Lanjut', 'AA 301', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Pemrograman Web Lanjut', 'TI 3A', 'AA 301', `id`
 FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Web Lanjut');
 
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Berorientasi Objek', 'AA 304', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Pemrograman Berorientasi Objek', 'TI 3B', 'AA 304', `id`
 FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Berorientasi Objek');
 
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Workshop Aplikasi Enterprise', 'Lab RPL 1', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Workshop Aplikasi Enterprise', 'TI 3C', 'Lab RPL 1', `id`
 FROM `dosen` WHERE `nama` = 'Asep Taufik, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Workshop Aplikasi Enterprise');
 
 -- Risna Sari, M.Kom.
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Pemrograman Basis Data', 'GSG 204', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Pemrograman Basis Data', 'TI 3A', 'GSG 204', `id`
 FROM `dosen` WHERE `nama` = 'Risna Sari, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Pemrograman Basis Data');
 
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Administrasi Basis Data', 'GSG 205', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Administrasi Basis Data', 'TI 3B', 'GSG 205', `id`
 FROM `dosen` WHERE `nama` = 'Risna Sari, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Administrasi Basis Data');
 
 -- Bagus Wijaya, M.Kom.
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Analisis Sistem', 'PUT 301', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Analisis Sistem', 'TI 3C', 'PUT 301', `id`
 FROM `dosen` WHERE `nama` = 'Bagus Wijaya, M.Kom.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Analisis Sistem');
 
 -- Dr. Hendra Pratama, M.T.
-INSERT INTO `mata_kuliah` (`nama`, `ruang`, `dosen_id`)
-SELECT 'Rekayasa Perangkat Lunak', 'AA 205', `id`
+INSERT INTO `mata_kuliah` (`nama`, `kelas`, `ruang`, `dosen_id`)
+SELECT 'Rekayasa Perangkat Lunak', 'TI 3C', 'AA 205', `id`
 FROM `dosen` WHERE `nama` = 'Dr. Hendra Pratama, M.T.'
 AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'Rekayasa Perangkat Lunak');
 
@@ -206,16 +208,26 @@ INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
 VALUES ('admin', 'admin123', 'admin', NULL)
 ON DUPLICATE KEY UPDATE `role` = VALUES(`role`);
 
--- Akun Mahasiswa
-INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
+-- Akun Mahasiswa per Kelas (TI 3A: 6 mhs, TI 3B: 5 mhs, TI 3C: 5 mhs)
+INSERT INTO `users` (`username`, `password`, `role`, `kelas`, `dosen_id`)
 VALUES
-    ('2507411026', '12345', 'mahasiswa', NULL),
-    ('2507411001', '12345', 'mahasiswa', NULL),
-    ('2507411002', '12345', 'mahasiswa', NULL),
-    ('2507411003', '12345', 'mahasiswa', NULL),
-    ('2507411004', '12345', 'mahasiswa', NULL),
-    ('2507411005', '12345', 'mahasiswa', NULL)
-ON DUPLICATE KEY UPDATE `role` = VALUES(`role`);
+    ('2507411001', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411002', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411003', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411004', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411006', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411007', '12345', 'mahasiswa', 'TI 3A', NULL),
+    ('2507411005', '12345', 'mahasiswa', 'TI 3B', NULL),
+    ('2507411008', '12345', 'mahasiswa', 'TI 3B', NULL),
+    ('2507411009', '12345', 'mahasiswa', 'TI 3B', NULL),
+    ('2507411010', '12345', 'mahasiswa', 'TI 3B', NULL),
+    ('2507411011', '12345', 'mahasiswa', 'TI 3B', NULL),
+    ('2507411026', '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411012', '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411013', '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411014', '12345', 'mahasiswa', 'TI 3C', NULL),
+    ('2507411015', '12345', 'mahasiswa', 'TI 3C', NULL)
+ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `kelas` = VALUES(`kelas`);
 
 -- Akun Dosen (Bisa login via username 'dosen' atau NIDN masing-masing dosen)
 INSERT INTO `users` (`username`, `password`, `role`, `dosen_id`)
