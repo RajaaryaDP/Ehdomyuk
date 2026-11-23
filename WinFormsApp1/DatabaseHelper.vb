@@ -1,3 +1,7 @@
+Imports System.Diagnostics
+Imports System.Globalization
+Imports System.IO
+Imports System.Text.Json
 Imports MySql.Data.MySqlClient
 
 Public Module DatabaseHelper
@@ -1319,7 +1323,175 @@ Public Module DatabaseHelper
             End If
         End Using
 
+        ' Hitung nilai Z & predikat Fuzzy Tsukamoto menggunakan backend edom.py
+        If stats.RataRataSkor > 0 Then
+            Dim hasilFuzzy = HitungFuzzyTsukamoto(
+                stats.SkorPedagogik,
+                stats.SkorProfesional,
+                stats.SkorKepribadian,
+                stats.SkorSosial
+            )
+            stats.NilaiFuzzy = hasilFuzzy.NilaiZ
+            stats.PredikatFuzzy = hasilFuzzy.Predikat
+        Else
+            stats.NilaiFuzzy = 0
+            stats.PredikatFuzzy = "Belum Ada Nilai"
+        End If
+
         Return stats
+    End Function
+
+    ' Memanggil backend Python edom.py untuk menghitung nilai defuzzifikasi Z (0..100) & predikat Fuzzy Tsukamoto.
+    Public Function HitungFuzzyTsukamoto(
+        pedagogik As Double,
+        profesional As Double,
+        kepribadian As Double,
+        sosial As Double
+    ) As (NilaiZ As Double, Predikat As String)
+
+        If pedagogik <= 0 OrElse profesional <= 0 OrElse kepribadian <= 0 OrElse sosial <= 0 Then
+            Return (0.0, "Belum Ada Nilai")
+        End If
+
+        Dim scriptPath As String = CariFileEdomPy()
+        If Not String.IsNullOrEmpty(scriptPath) Then
+            Try
+                Dim inv As CultureInfo = CultureInfo.InvariantCulture
+                Dim args As String =
+                    $"--json {pedagogik.ToString("0.0000", inv)} {profesional.ToString("0.0000", inv)} " &
+                    $"{kepribadian.ToString("0.0000", inv)} {sosial.ToString("0.0000", inv)}"
+
+                Dim psi As New ProcessStartInfo With {
+                    .FileName = "python",
+                    .Arguments = $"""{scriptPath}"" {args}",
+                    .WorkingDirectory = Path.GetDirectoryName(scriptPath),
+                    .UseShellExecute = False,
+                    .RedirectStandardOutput = True,
+                    .RedirectStandardError = True,
+                    .CreateNoWindow = True
+                }
+
+                Using proc As Process = Process.Start(psi)
+                    If proc IsNot Nothing Then
+                        Dim stdout As String = proc.StandardOutput.ReadToEnd().Trim()
+                        proc.WaitForExit(3000)
+
+                        If proc.ExitCode = 0 AndAlso Not String.IsNullOrWhiteSpace(stdout) Then
+                            Using doc As JsonDocument = JsonDocument.Parse(stdout)
+                                Dim root As JsonElement = doc.RootElement
+                                Dim zVal As Double = root.GetProperty("z_akhir").GetDouble()
+                                Dim predVal As String = root.GetProperty("predikat").GetString()
+                                Return (Math.Round(zVal, 2), If(String.IsNullOrWhiteSpace(predVal), PredikatFuzzyTsukamoto(zVal), predVal))
+                            End Using
+                        End If
+                    End If
+                End Using
+            Catch
+            End Try
+        End If
+
+        ' Fallback perhitungan Fuzzy Tsukamoto identik jika Python tidak ditemukan di PATH
+        Return HitungFuzzyTsukamotoFallback(pedagogik, profesional, kepribadian, sosial)
+    End Function
+
+    Private Function CariFileEdomPy() As String
+        Dim dir As DirectoryInfo = New DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory)
+        For i As Integer = 0 To 6
+            If dir Is Nothing Then Exit For
+            Dim candidate As String = Path.Combine(dir.FullName, "edom.py")
+            If File.Exists(candidate) Then Return candidate
+            dir = dir.Parent
+        Next
+
+        Dim cwdCandidate As String = Path.Combine(Environment.CurrentDirectory, "edom.py")
+        If File.Exists(cwdCandidate) Then Return cwdCandidate
+        Return Nothing
+    End Function
+
+    Private Function HitungFuzzyTsukamotoFallback(
+        ped As Double,
+        prof As Double,
+        kep As Double,
+        sos As Double
+    ) As (NilaiZ As Double, Predikat As String)
+
+        Dim mu As Double()() = {
+            New Double() {MuKurang(ped), MuCukup(ped), MuBaik(ped)},
+            New Double() {MuKurang(prof), MuCukup(prof), MuBaik(prof)},
+            New Double() {MuKurang(kep), MuCukup(kep), MuBaik(kep)},
+            New Double() {MuKurang(sos), MuCukup(sos), MuBaik(sos)}
+        }
+
+        ' 81 aturan kesimpulan sesuai ATURAN di edom.py (0 = kurang, 1 = cukup, 2 = baik)
+        Dim kesimpulan81 As Integer() = {
+            0, 0, 0, 0, 0, 1, 0, 1, 1,
+            0, 0, 1, 0, 1, 1, 1, 1, 1,
+            0, 1, 1, 1, 1, 1, 1, 1, 2,
+            0, 0, 1, 0, 1, 1, 1, 1, 1,
+            0, 1, 1, 1, 1, 1, 1, 1, 2,
+            1, 1, 1, 1, 1, 2, 1, 2, 2,
+            0, 1, 1, 1, 1, 1, 1, 1, 2,
+            1, 1, 1, 1, 1, 2, 1, 2, 2,
+            1, 1, 2, 1, 2, 2, 2, 2, 2
+        }
+
+        Dim totalAlpha As Double = 0
+        Dim totalAlphaZ As Double = 0
+        Dim idx As Integer = 0
+
+        For iPed As Integer = 0 To 2
+            For iProf As Integer = 0 To 2
+                For iKep As Integer = 0 To 2
+                    For iSos As Integer = 0 To 2
+                        Dim alpha As Double = Math.Min(
+                            Math.Min(mu(0)(iPed), mu(1)(iProf)),
+                            Math.Min(mu(2)(iKep), mu(3)(iSos))
+                        )
+                        Dim outClass As Integer = kesimpulan81(idx)
+                        Dim z As Double
+                        If outClass = 0 Then
+                            z = 50.0 - 25.0 * alpha
+                        ElseIf outClass = 1 Then
+                            z = 50.0 + 25.0 * alpha
+                        Else
+                            z = 75.0 + 25.0 * alpha
+                        End If
+
+                        totalAlpha += alpha
+                        totalAlphaZ += alpha * z
+                        idx += 1
+                    Next
+                Next
+            Next
+        Next
+
+        If totalAlpha <= 0 Then Return (0.0, "Belum Ada Nilai")
+        Dim zAkhir As Double = Math.Round(totalAlphaZ / totalAlpha, 2)
+        Return (zAkhir, PredikatFuzzyTsukamoto(zAkhir))
+    End Function
+
+    Private Function MuKurang(x As Double) As Double
+        If x <= 1.0 Then Return 1.0
+        If x < 3.0 Then Return (3.0 - x) / 2.0
+        Return 0.0
+    End Function
+
+    Private Function MuCukup(x As Double) As Double
+        If x <= 2.0 OrElse x >= 4.0 Then Return 0.0
+        If x <= 3.0 Then Return x - 2.0
+        Return 4.0 - x
+    End Function
+
+    Private Function MuBaik(x As Double) As Double
+        If x <= 3.0 Then Return 0.0
+        If x < 5.0 Then Return (x - 3.0) / 2.0
+        Return 1.0
+    End Function
+
+    Private Function PredikatFuzzyTsukamoto(z As Double) As String
+        If z < 50.0 Then Return "Kurang"
+        If z < 75.0 Then Return "Cukup"
+        Return "Baik"
     End Function
 
     ' Rata-rata nilai setiap butir instrumen untuk seorang dosen. kelasFilter kosong = seluruh kelas yang diajar dosen.
@@ -1709,6 +1881,8 @@ Public Class DosenEdomStatistik
     Public Property SkorProfesional As Double
     Public Property SkorKepribadian As Double
     Public Property SkorSosial As Double
+    Public Property NilaiFuzzy As Double
+    Public Property PredikatFuzzy As String = "Belum Ada Nilai"
     Public Property PerMataKuliah As New List(Of DosenMkStatistik)
     Public Property DaftarFeedback As New List(Of EdomFeedbackItem)
 End Class

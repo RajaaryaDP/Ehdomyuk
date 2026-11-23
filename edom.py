@@ -206,6 +206,8 @@ def evaluasi_aturan(mu):
 def defuzzifikasi(hasil_aturan):
     """Langkah 5: rata-rata terbobot  Z = sum(alpha*z) / sum(alpha)."""
     total_alpha = sum(r["alpha"] for r in hasil_aturan)
+    if total_alpha == 0:
+        return 0.0
     total_alpha_z = sum(r["alpha"] * r["z"] for r in hasil_aturan)
     return total_alpha_z / total_alpha
 
@@ -227,9 +229,42 @@ def hitung(jawaban):
     return rata, mu, hasil_aturan, z_akhir
 
 
+def hitung_dari_rata_rata(pedagogik, profesional, kepribadian, sosial):
+    """Hitung Fuzzy Tsukamoto langsung dari 4 nilai rata-rata kompetensi (skala 1..5)."""
+    rata = {
+        "Pedagogik": float(pedagogik),
+        "Profesional": float(profesional),
+        "Kepribadian": float(kepribadian),
+        "Sosial": float(sosial),
+    }
+    if any(v <= 0 for v in rata.values()):
+        return rata, {}, [], 0.0, "Belum Ada Nilai"
 
-# CONTOH PENGGUNAAN
+    mu = fuzzifikasi(rata)
+    hasil_aturan = evaluasi_aturan(mu)
+    z_akhir = defuzzifikasi(hasil_aturan)
+    return rata, mu, hasil_aturan, z_akhir, predikat(z_akhir)
+
+
+
+# CONTOH PENGGUNAAN & CLI JSON UNTUK VB.NET
 if __name__ == "__main__":
+    import json
+    import sys
+
+    args = [a for a in sys.argv[1:] if a != "--json"]
+    if len(args) == 4:
+        ped, prof, kep, sos = (float(x) for x in args)
+        rata, mu, hasil_aturan, z_akhir, label_predikat = hitung_dari_rata_rata(ped, prof, kep, sos)
+        aktif = [r for r in hasil_aturan if r["alpha"] > 0]
+        print(json.dumps({
+            "rata_rata": rata,
+            "z_akhir": round(z_akhir, 4),
+            "predikat": label_predikat,
+            "aturan_aktif": len(aktif),
+        }))
+        sys.exit(0)
+
     contoh = {
         "Pedagogik":   [4, 3, 4, 5, 3, 4, 4, 3, 4],
         "Profesional": [3, 3, 4, 3, 2, 3, 3, 2],

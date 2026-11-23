@@ -132,25 +132,23 @@ Public Class dashboard_dosen
             lblPersenSub.Text = "Target partisipasi: >=75%"
         End If
 
-        ' 2. Kartu Indeks Kinerja & Skor EDOM
-        lblRataRataSkor.Text = If(stats.RataRataSkor > 0, stats.RataRataSkor.ToString("0.00"), "0.00")
+        ' 2. Kartu Indeks Kinerja Dosen (Nilai Crisp & Kategori Fuzzy Tsukamoto dari edom.py)
+        lblRataRataSkor.Text = If(stats.NilaiFuzzy > 0, stats.NilaiFuzzy.ToString("0.00"), "0.00")
+        lblScoreScale.Left = lblRataRataSkor.Right + 4
 
-        If stats.RataRataSkor >= 4.5 Then
-            lblPredikatBadge.Text = "Sangat Baik"
-            lblPredikatBadge.BackColor = Color.FromArgb(236, 241, 234)
-            lblPredikatBadge.ForeColor = Color.FromArgb(30, 59, 51)
-        ElseIf stats.RataRataSkor >= 3.75 Then
-            lblPredikatBadge.Text = "Baik"
-            lblPredikatBadge.BackColor = Color.FromArgb(236, 241, 234)
-            lblPredikatBadge.ForeColor = Color.FromArgb(46, 82, 72)
-        ElseIf stats.RataRataSkor >= 3.0 Then
-            lblPredikatBadge.Text = "Cukup"
-            lblPredikatBadge.BackColor = Color.FromArgb(254, 243, 199)
-            lblPredikatBadge.ForeColor = Color.FromArgb(146, 64, 14)
-        ElseIf stats.RataRataSkor > 0 Then
-            lblPredikatBadge.Text = "Perlu Evaluasi"
-            lblPredikatBadge.BackColor = Color.FromArgb(254, 226, 226)
-            lblPredikatBadge.ForeColor = LowProgressColor
+        If stats.NilaiFuzzy > 0 Then
+            lblPredikatBadge.Text = stats.PredikatFuzzy
+            Select Case If(stats.PredikatFuzzy, "").Trim().ToLowerInvariant()
+                Case "baik"
+                    lblPredikatBadge.BackColor = Color.FromArgb(236, 241, 234)
+                    lblPredikatBadge.ForeColor = Color.FromArgb(30, 59, 51)
+                Case "cukup"
+                    lblPredikatBadge.BackColor = Color.FromArgb(254, 243, 199)
+                    lblPredikatBadge.ForeColor = Color.FromArgb(146, 64, 14)
+                Case Else
+                    lblPredikatBadge.BackColor = Color.FromArgb(254, 226, 226)
+                    lblPredikatBadge.ForeColor = LowProgressColor
+            End Select
         Else
             lblPredikatBadge.Text = "Belum Ada Nilai"
             lblPredikatBadge.BackColor = Color.FromArgb(241, 239, 232)
