@@ -75,7 +75,34 @@ Partial Class AdminDashboard
         lblMkTitle = New Label()
         lblKelolaError = New Label()
         lblKelolaTitle = New Label()
+        btnPertanyaan = New Button()
+        pnlPertanyaan = New Panel()
+        pnlPertanyaanCard = New Panel()
+        dgvPertanyaan = New DataGridView()
+        colQNomor = New DataGridViewTextBoxColumn()
+        colQKompetensi = New DataGridViewTextBoxColumn()
+        colQTeks = New DataGridViewTextBoxColumn()
+        colQStatus = New DataGridViewTextBoxColumn()
+        colQJawaban = New DataGridViewTextBoxColumn()
+        pnlPertanyaanForm = New Panel()
+        btnPKosongkan = New Button()
+        btnPHapus = New Button()
+        btnPSimpan = New Button()
+        btnPTambah = New Button()
+        lblPPesan = New Label()
+        txtPTeks = New TextBox()
+        lblPTeks = New Label()
+        chkPAktif = New CheckBox()
+        cmbPKompetensi = New ComboBox()
+        lblPKompetensi = New Label()
+        lblPertanyaanHint = New Label()
+        lblPertanyaanSummary = New Label()
+        lblPertanyaanTitle = New Label()
         sidebar.SuspendLayout()
+        pnlPertanyaan.SuspendLayout()
+        pnlPertanyaanCard.SuspendLayout()
+        CType(dgvPertanyaan, ComponentModel.ISupportInitialize).BeginInit()
+        pnlPertanyaanForm.SuspendLayout()
         pnlProgres.SuspendLayout()
         pnlProgresState.SuspendLayout()
         CType(dgvProgres, ComponentModel.ISupportInitialize).BeginInit()
@@ -95,6 +122,7 @@ Partial Class AdminDashboard
         sidebar.BackColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
         sidebar.BorderStyle = BorderStyle.Fixed3D
         sidebar.Controls.Add(lblRole)
+        sidebar.Controls.Add(btnPertanyaan)
         sidebar.Controls.Add(btnKelola)
         sidebar.Controls.Add(btnLogout)
         sidebar.Controls.Add(btnProgres)
@@ -136,7 +164,26 @@ Partial Class AdminDashboard
         btnKelola.Text = "    Dosen && Mata Kuliah"
         btnKelola.TextAlign = ContentAlignment.MiddleLeft
         btnKelola.UseVisualStyleBackColor = False
-        ' 
+        '
+        ' btnPertanyaan
+        '
+        btnPertanyaan.BackColor = Color.FromArgb(CByte(46), CByte(82), CByte(72))
+        btnPertanyaan.Cursor = Cursors.Hand
+        btnPertanyaan.FlatAppearance.BorderSize = 0
+        btnPertanyaan.FlatAppearance.MouseDownBackColor = Color.FromArgb(CByte(114), CByte(142), CByte(109))
+        btnPertanyaan.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(88), CByte(118), CByte(84))
+        btnPertanyaan.FlatStyle = FlatStyle.Flat
+        btnPertanyaan.Font = New Font("Segoe UI", 9.5F, FontStyle.Bold)
+        btnPertanyaan.ForeColor = Color.White
+        btnPertanyaan.Location = New Point(-2, 323)
+        btnPertanyaan.Margin = New Padding(3, 4, 3, 4)
+        btnPertanyaan.Name = "btnPertanyaan"
+        btnPertanyaan.Size = New Size(274, 56)
+        btnPertanyaan.TabIndex = 6
+        btnPertanyaan.Text = "    Butir Pertanyaan"
+        btnPertanyaan.TextAlign = ContentAlignment.MiddleLeft
+        btnPertanyaan.UseVisualStyleBackColor = False
+        '
         ' btnLogout
         ' 
         btnLogout.Anchor = AnchorStyles.Bottom Or AnchorStyles.Left
@@ -794,7 +841,271 @@ Partial Class AdminDashboard
         lblKelolaTitle.Size = New Size(1113, 56)
         lblKelolaTitle.TabIndex = 0
         lblKelolaTitle.Text = "Dosen && Mata Kuliah"
-        ' 
+        '
+        ' pnlPertanyaan
+        '
+        pnlPertanyaan.BackColor = Color.FromArgb(CByte(250), CByte(248), CByte(243))
+        pnlPertanyaan.Controls.Add(pnlPertanyaanCard)
+        pnlPertanyaan.Controls.Add(lblPertanyaanHint)
+        pnlPertanyaan.Controls.Add(lblPertanyaanSummary)
+        pnlPertanyaan.Controls.Add(lblPertanyaanTitle)
+        pnlPertanyaan.Dock = DockStyle.Fill
+        pnlPertanyaan.Location = New Point(274, 0)
+        pnlPertanyaan.Name = "pnlPertanyaan"
+        pnlPertanyaan.Padding = New Padding(40, 33, 40, 33)
+        pnlPertanyaan.Size = New Size(1193, 960)
+        pnlPertanyaan.TabIndex = 3
+        pnlPertanyaan.Visible = False
+        '
+        ' lblPertanyaanTitle
+        '
+        lblPertanyaanTitle.Dock = DockStyle.Top
+        lblPertanyaanTitle.Font = New Font("Segoe UI", 18.0F, FontStyle.Bold)
+        lblPertanyaanTitle.ForeColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
+        lblPertanyaanTitle.Location = New Point(40, 33)
+        lblPertanyaanTitle.Name = "lblPertanyaanTitle"
+        lblPertanyaanTitle.Size = New Size(1113, 56)
+        lblPertanyaanTitle.TabIndex = 0
+        lblPertanyaanTitle.Text = "Butir Pertanyaan EDOM"
+        '
+        ' lblPertanyaanSummary
+        '
+        lblPertanyaanSummary.Dock = DockStyle.Top
+        lblPertanyaanSummary.Font = New Font("Segoe UI", 11.0F)
+        lblPertanyaanSummary.ForeColor = Color.FromArgb(CByte(52), CByte(58), CByte(64))
+        lblPertanyaanSummary.Location = New Point(40, 89)
+        lblPertanyaanSummary.Name = "lblPertanyaanSummary"
+        lblPertanyaanSummary.Size = New Size(1113, 32)
+        lblPertanyaanSummary.TabIndex = 1
+        lblPertanyaanSummary.Text = "Memuat data..."
+        '
+        ' lblPertanyaanHint
+        '
+        lblPertanyaanHint.Dock = DockStyle.Top
+        lblPertanyaanHint.Font = New Font("Segoe UI", 9.5F)
+        lblPertanyaanHint.ForeColor = Color.FromArgb(CByte(108), CByte(117), CByte(125))
+        lblPertanyaanHint.Location = New Point(40, 121)
+        lblPertanyaanHint.Name = "lblPertanyaanHint"
+        lblPertanyaanHint.Size = New Size(1113, 52)
+        lblPertanyaanHint.TabIndex = 2
+        lblPertanyaanHint.Text = "Butir baru otomatis ditaruh di akhir kelompok kompetensinya. Pilihan kompetensi dibatasi 4 karena " &
+            "keempatnya menjadi input perhitungan Fuzzy Tsukamoto. Butir yang sudah pernah dijawab mahasiswa tidak bisa dihapus, cukup dinonaktifkan."
+        '
+        ' pnlPertanyaanCard
+        '
+        pnlPertanyaanCard.BackColor = Color.White
+        pnlPertanyaanCard.Controls.Add(dgvPertanyaan)
+        pnlPertanyaanCard.Controls.Add(pnlPertanyaanForm)
+        pnlPertanyaanCard.Dock = DockStyle.Fill
+        pnlPertanyaanCard.Location = New Point(40, 173)
+        pnlPertanyaanCard.Name = "pnlPertanyaanCard"
+        pnlPertanyaanCard.Padding = New Padding(20)
+        pnlPertanyaanCard.Size = New Size(1113, 754)
+        pnlPertanyaanCard.TabIndex = 3
+        '
+        ' pnlPertanyaanForm
+        '
+        pnlPertanyaanForm.Controls.Add(btnPKosongkan)
+        pnlPertanyaanForm.Controls.Add(btnPHapus)
+        pnlPertanyaanForm.Controls.Add(btnPSimpan)
+        pnlPertanyaanForm.Controls.Add(btnPTambah)
+        pnlPertanyaanForm.Controls.Add(lblPPesan)
+        pnlPertanyaanForm.Controls.Add(txtPTeks)
+        pnlPertanyaanForm.Controls.Add(lblPTeks)
+        pnlPertanyaanForm.Controls.Add(chkPAktif)
+        pnlPertanyaanForm.Controls.Add(cmbPKompetensi)
+        pnlPertanyaanForm.Controls.Add(lblPKompetensi)
+        pnlPertanyaanForm.Dock = DockStyle.Top
+        pnlPertanyaanForm.Location = New Point(20, 20)
+        pnlPertanyaanForm.Name = "pnlPertanyaanForm"
+        pnlPertanyaanForm.Size = New Size(1073, 250)
+        pnlPertanyaanForm.TabIndex = 0
+        '
+        ' lblPKompetensi
+        '
+        lblPKompetensi.AutoSize = True
+        lblPKompetensi.Font = New Font("Segoe UI", 9.0F)
+        lblPKompetensi.ForeColor = Color.FromArgb(CByte(73), CByte(80), CByte(87))
+        lblPKompetensi.Location = New Point(0, 0)
+        lblPKompetensi.Name = "lblPKompetensi"
+        lblPKompetensi.Size = New Size(84, 20)
+        lblPKompetensi.TabIndex = 0
+        lblPKompetensi.Text = "Kompetensi"
+        '
+        ' cmbPKompetensi
+        '
+        cmbPKompetensi.DropDownStyle = ComboBoxStyle.DropDownList
+        cmbPKompetensi.Font = New Font("Segoe UI", 10.0F)
+        cmbPKompetensi.FormattingEnabled = True
+        cmbPKompetensi.Location = New Point(0, 24)
+        cmbPKompetensi.Name = "cmbPKompetensi"
+        cmbPKompetensi.Size = New Size(300, 31)
+        cmbPKompetensi.TabIndex = 1
+        '
+        ' chkPAktif
+        '
+        chkPAktif.AutoSize = True
+        chkPAktif.Checked = True
+        chkPAktif.CheckState = CheckState.Checked
+        chkPAktif.Cursor = Cursors.Hand
+        chkPAktif.Font = New Font("Segoe UI", 9.5F)
+        chkPAktif.ForeColor = Color.FromArgb(CByte(33), CByte(37), CByte(41))
+        chkPAktif.Location = New Point(324, 27)
+        chkPAktif.Name = "chkPAktif"
+        chkPAktif.Size = New Size(290, 25)
+        chkPAktif.TabIndex = 2
+        chkPAktif.Text = "Aktif (muncul di formulir mahasiswa)"
+        chkPAktif.UseVisualStyleBackColor = True
+        '
+        ' lblPTeks
+        '
+        lblPTeks.AutoSize = True
+        lblPTeks.Font = New Font("Segoe UI", 9.0F)
+        lblPTeks.ForeColor = Color.FromArgb(CByte(73), CByte(80), CByte(87))
+        lblPTeks.Location = New Point(0, 66)
+        lblPTeks.Name = "lblPTeks"
+        lblPTeks.Size = New Size(210, 20)
+        lblPTeks.TabIndex = 3
+        lblPTeks.Text = "Teks pertanyaan (maks. 255 karakter)"
+        '
+        ' txtPTeks
+        '
+        txtPTeks.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
+        txtPTeks.Font = New Font("Segoe UI", 10.0F)
+        txtPTeks.Location = New Point(0, 90)
+        txtPTeks.MaxLength = 255
+        txtPTeks.Multiline = True
+        txtPTeks.Name = "txtPTeks"
+        txtPTeks.ScrollBars = ScrollBars.Vertical
+        txtPTeks.Size = New Size(1073, 64)
+        txtPTeks.TabIndex = 4
+        '
+        ' lblPPesan
+        '
+        lblPPesan.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
+        lblPPesan.Font = New Font("Segoe UI", 9.0F)
+        lblPPesan.ForeColor = Color.FromArgb(CByte(176), CByte(42), CByte(55))
+        lblPPesan.Location = New Point(0, 160)
+        lblPPesan.Name = "lblPPesan"
+        lblPPesan.Size = New Size(1073, 24)
+        lblPPesan.TabIndex = 5
+        '
+        ' btnPTambah
+        '
+        btnPTambah.BackColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
+        btnPTambah.Cursor = Cursors.Hand
+        btnPTambah.FlatAppearance.BorderSize = 0
+        btnPTambah.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(46), CByte(82), CByte(72))
+        btnPTambah.FlatStyle = FlatStyle.Flat
+        btnPTambah.Font = New Font("Segoe UI", 9.5F, FontStyle.Bold)
+        btnPTambah.ForeColor = Color.White
+        btnPTambah.Location = New Point(0, 192)
+        btnPTambah.Name = "btnPTambah"
+        btnPTambah.Size = New Size(160, 42)
+        btnPTambah.TabIndex = 6
+        btnPTambah.Text = "Tambah butir"
+        btnPTambah.UseVisualStyleBackColor = False
+        '
+        ' btnPSimpan
+        '
+        btnPSimpan.BackColor = Color.White
+        btnPSimpan.Cursor = Cursors.Hand
+        btnPSimpan.Enabled = False
+        btnPSimpan.FlatAppearance.BorderColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
+        btnPSimpan.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(236), CByte(241), CByte(234))
+        btnPSimpan.FlatStyle = FlatStyle.Flat
+        btnPSimpan.Font = New Font("Segoe UI", 9.5F, FontStyle.Bold)
+        btnPSimpan.ForeColor = Color.FromArgb(CByte(30), CByte(59), CByte(51))
+        btnPSimpan.Location = New Point(168, 192)
+        btnPSimpan.Name = "btnPSimpan"
+        btnPSimpan.Size = New Size(96, 42)
+        btnPSimpan.TabIndex = 7
+        btnPSimpan.Text = "Simpan"
+        btnPSimpan.UseVisualStyleBackColor = False
+        '
+        ' btnPHapus
+        '
+        btnPHapus.BackColor = Color.White
+        btnPHapus.Cursor = Cursors.Hand
+        btnPHapus.Enabled = False
+        btnPHapus.FlatAppearance.BorderColor = Color.FromArgb(CByte(176), CByte(42), CByte(55))
+        btnPHapus.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(251), CByte(235), CByte(236))
+        btnPHapus.FlatStyle = FlatStyle.Flat
+        btnPHapus.Font = New Font("Segoe UI", 9.5F, FontStyle.Bold)
+        btnPHapus.ForeColor = Color.FromArgb(CByte(176), CByte(42), CByte(55))
+        btnPHapus.Location = New Point(272, 192)
+        btnPHapus.Name = "btnPHapus"
+        btnPHapus.Size = New Size(84, 42)
+        btnPHapus.TabIndex = 8
+        btnPHapus.Text = "Hapus"
+        btnPHapus.UseVisualStyleBackColor = False
+        '
+        ' btnPKosongkan
+        '
+        btnPKosongkan.BackColor = Color.White
+        btnPKosongkan.Cursor = Cursors.Hand
+        btnPKosongkan.FlatAppearance.BorderColor = Color.FromArgb(CByte(206), CByte(212), CByte(218))
+        btnPKosongkan.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(241), CByte(239), CByte(232))
+        btnPKosongkan.FlatStyle = FlatStyle.Flat
+        btnPKosongkan.Font = New Font("Segoe UI", 9.5F)
+        btnPKosongkan.ForeColor = Color.FromArgb(CByte(73), CByte(80), CByte(87))
+        btnPKosongkan.Location = New Point(364, 192)
+        btnPKosongkan.Name = "btnPKosongkan"
+        btnPKosongkan.Size = New Size(120, 42)
+        btnPKosongkan.TabIndex = 9
+        btnPKosongkan.Text = "Kosongkan"
+        btnPKosongkan.UseVisualStyleBackColor = False
+        '
+        ' dgvPertanyaan
+        '
+        dgvPertanyaan.Columns.AddRange(New DataGridViewColumn() {colQNomor, colQKompetensi, colQTeks, colQStatus, colQJawaban})
+        dgvPertanyaan.Dock = DockStyle.Fill
+        dgvPertanyaan.Location = New Point(20, 270)
+        dgvPertanyaan.Name = "dgvPertanyaan"
+        dgvPertanyaan.RowHeadersWidth = 51
+        dgvPertanyaan.Size = New Size(1073, 464)
+        dgvPertanyaan.TabIndex = 1
+        '
+        ' colQNomor
+        '
+        colQNomor.FillWeight = 6.0F
+        colQNomor.HeaderText = "No"
+        colQNomor.MinimumWidth = 6
+        colQNomor.Name = "colQNomor"
+        colQNomor.ReadOnly = True
+        '
+        ' colQKompetensi
+        '
+        colQKompetensi.FillWeight = 18.0F
+        colQKompetensi.HeaderText = "Kompetensi"
+        colQKompetensi.MinimumWidth = 6
+        colQKompetensi.Name = "colQKompetensi"
+        colQKompetensi.ReadOnly = True
+        '
+        ' colQTeks
+        '
+        colQTeks.FillWeight = 56.0F
+        colQTeks.HeaderText = "Pertanyaan"
+        colQTeks.MinimumWidth = 6
+        colQTeks.Name = "colQTeks"
+        colQTeks.ReadOnly = True
+        '
+        ' colQStatus
+        '
+        colQStatus.FillWeight = 10.0F
+        colQStatus.HeaderText = "Status"
+        colQStatus.MinimumWidth = 6
+        colQStatus.Name = "colQStatus"
+        colQStatus.ReadOnly = True
+        '
+        ' colQJawaban
+        '
+        colQJawaban.FillWeight = 10.0F
+        colQJawaban.HeaderText = "Dijawab"
+        colQJawaban.MinimumWidth = 6
+        colQJawaban.Name = "colQJawaban"
+        colQJawaban.ReadOnly = True
+        '
         ' AdminDashboard
         ' 
         AutoScaleDimensions = New SizeF(8.0F, 20.0F)
@@ -802,6 +1113,7 @@ Partial Class AdminDashboard
         ClientSize = New Size(1467, 960)
         Controls.Add(pnlProgres)
         Controls.Add(pnlKelola)
+        Controls.Add(pnlPertanyaan)
         Controls.Add(sidebar)
         Margin = New Padding(3, 4, 3, 4)
         MinimumSize = New Size(1255, 918)
@@ -825,6 +1137,11 @@ Partial Class AdminDashboard
         CType(dgvMk, ComponentModel.ISupportInitialize).EndInit()
         pnlMkForm.ResumeLayout(False)
         pnlMkForm.PerformLayout()
+        pnlPertanyaan.ResumeLayout(False)
+        pnlPertanyaanCard.ResumeLayout(False)
+        CType(dgvPertanyaan, ComponentModel.ISupportInitialize).EndInit()
+        pnlPertanyaanForm.ResumeLayout(False)
+        pnlPertanyaanForm.PerformLayout()
         ResumeLayout(False)
 
     End Sub
@@ -887,6 +1204,29 @@ Partial Class AdminDashboard
     Friend WithEvents colMNama As DataGridViewTextBoxColumn
     Friend WithEvents colMDosen As DataGridViewTextBoxColumn
     Friend WithEvents colMRuang As DataGridViewTextBoxColumn
+    Friend WithEvents btnPertanyaan As Button
+    Friend WithEvents pnlPertanyaan As Panel
+    Friend WithEvents lblPertanyaanTitle As Label
+    Friend WithEvents lblPertanyaanSummary As Label
+    Friend WithEvents lblPertanyaanHint As Label
+    Friend WithEvents pnlPertanyaanCard As Panel
+    Friend WithEvents pnlPertanyaanForm As Panel
+    Friend WithEvents lblPKompetensi As Label
+    Friend WithEvents cmbPKompetensi As ComboBox
+    Friend WithEvents chkPAktif As CheckBox
+    Friend WithEvents lblPTeks As Label
+    Friend WithEvents txtPTeks As TextBox
+    Friend WithEvents lblPPesan As Label
+    Friend WithEvents btnPTambah As Button
+    Friend WithEvents btnPSimpan As Button
+    Friend WithEvents btnPHapus As Button
+    Friend WithEvents btnPKosongkan As Button
+    Friend WithEvents dgvPertanyaan As DataGridView
+    Friend WithEvents colQNomor As DataGridViewTextBoxColumn
+    Friend WithEvents colQKompetensi As DataGridViewTextBoxColumn
+    Friend WithEvents colQTeks As DataGridViewTextBoxColumn
+    Friend WithEvents colQStatus As DataGridViewTextBoxColumn
+    Friend WithEvents colQJawaban As DataGridViewTextBoxColumn
 
 End Class
 

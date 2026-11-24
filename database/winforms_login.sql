@@ -173,8 +173,17 @@ AND NOT EXISTS (SELECT 1 FROM `mata_kuliah` WHERE `nama` = 'TIK304 - Kecerdasan 
 -- ============================================================================
 -- BUTIR PERTANYAAN EDOM (sesuai INSTRUMEN EDOM 2023)
 -- Skala: 1 (Sangat Kurang), 2 (Kurang), 3 (Cukup), 4 (Baik), 5 (Sangat Baik)
+-- Hanya diisi jika tabel masih kosong, supaya butir yang sudah ditambah/diubah
+-- admin lewat menu "Butir Pertanyaan" tidak tertimpa saat file ini dijalankan ulang.
 -- ============================================================================
-INSERT INTO `edom_pertanyaan` (`nomor`, `kompetensi`, `pertanyaan`)
+DROP TEMPORARY TABLE IF EXISTS `tmp_edom_pertanyaan`;
+CREATE TEMPORARY TABLE `tmp_edom_pertanyaan` (
+    `nomor` INT NOT NULL,
+    `kompetensi` VARCHAR(20) NOT NULL,
+    `pertanyaan` VARCHAR(255) NOT NULL
+);
+
+INSERT INTO `tmp_edom_pertanyaan` (`nomor`, `kompetensi`, `pertanyaan`)
 VALUES
     -- A. Kompetensi Pedagogik
     (1,  'pedagogik',   'Kesiapan memberikan kuliah dan/atau praktek/praktikum'),
@@ -206,10 +215,14 @@ VALUES
     (24, 'sosial',      'Kemampuan menyampaikan pendapat'),
     (25, 'sosial',      'Kemampuan menerima kritik, saran, dan pendapat dari mahasiswa'),
     (26, 'sosial',      'Mengenal dengan baik mahasiswa yang mengikuti kuliahnya'),
-    (27, 'sosial',      'Toleransi terhadap keberagaman mahasiswa')
-ON DUPLICATE KEY UPDATE
-    `kompetensi` = VALUES(`kompetensi`),
-    `pertanyaan` = VALUES(`pertanyaan`);
+    (27, 'sosial',      'Toleransi terhadap keberagaman mahasiswa');
+
+INSERT INTO `edom_pertanyaan` (`nomor`, `kompetensi`, `pertanyaan`)
+SELECT t.`nomor`, t.`kompetensi`, t.`pertanyaan`
+FROM `tmp_edom_pertanyaan` t
+WHERE NOT EXISTS (SELECT 1 FROM `edom_pertanyaan`);
+
+DROP TEMPORARY TABLE IF EXISTS `tmp_edom_pertanyaan`;
 
 -- ============================================================================
 -- DATA AKUN PENGGUNA (Admin, 5 Mahasiswa TI 3C, dan 1 Akun Dosen)

@@ -16,6 +16,9 @@ Public Class AdminDashboard
     Private populatingGrids As Boolean
     Private selectedDosenId As Integer?
     Private selectedMkId As Integer?
+    Private selectedPertanyaan As PertanyaanAdminItem
+    Private ReadOnly MutedColor As Color = Color.FromArgb(108, 117, 125)
+    Private ReadOnly SuccessColor As Color = Color.FromArgb(25, 135, 84)
 
     Public Sub New()
         InitializeComponent()
@@ -23,6 +26,16 @@ Public Class AdminDashboard
         StyleGrid(dgvProgres)
         StyleGrid(dgvDosen)
         StyleGrid(dgvMk)
+        StyleGrid(dgvPertanyaan)
+
+        ' Teks pertanyaan bisa panjang, jadi baris tabel dibuat menyesuaikan tinggi teks.
+        colQTeks.DefaultCellStyle.WrapMode = DataGridViewTriState.True
+        dgvPertanyaan.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        dgvPertanyaan.DefaultCellStyle.Padding = New Padding(10, 8, 6, 8)
+
+        For Each kode As String In DatabaseHelper.DaftarKompetensi
+            cmbPKompetensi.Items.Add(New KompetensiOption(kode))
+        Next
     End Sub
 
     Private Async Sub AdminDashboard_Load(
@@ -39,7 +52,7 @@ Public Class AdminDashboard
     Private Async Sub SidebarMenu_Click(
         sender As Object,
         e As EventArgs
-    ) Handles btnProgres.Click, btnKelola.Click
+    ) Handles btnProgres.Click, btnKelola.Click, btnPertanyaan.Click
 
         Await ShowSectionAsync(DirectCast(sender, Button))
     End Sub
@@ -47,14 +60,18 @@ Public Class AdminDashboard
     Private Async Function ShowSectionAsync(menu As Button) As Task
         btnProgres.BackColor = If(menu Is btnProgres, ActiveMenuColor, InactiveMenuColor)
         btnKelola.BackColor = If(menu Is btnKelola, ActiveMenuColor, InactiveMenuColor)
+        btnPertanyaan.BackColor = If(menu Is btnPertanyaan, ActiveMenuColor, InactiveMenuColor)
 
         pnlProgres.Visible = menu Is btnProgres
         pnlKelola.Visible = menu Is btnKelola
+        pnlPertanyaan.Visible = menu Is btnPertanyaan
 
         If menu Is btnProgres Then
             Await LoadProgresAsync()
-        Else
+        ElseIf menu Is btnKelola Then
             Await LoadKelolaAsync()
+        Else
+            Await LoadPertanyaanAsync()
         End If
     End Function
 
@@ -428,6 +445,225 @@ Public Class AdminDashboard
         btnMkSimpan.Enabled = False
         btnMkHapus.Enabled = False
     End Sub
+
+    ' ---------- Butir Pertanyaan EDOM ----------
+
+    Private Async Function LoadPertanyaanAsync() As Task
+        pnlPertanyaanForm.Enabled = False
+        lblPertanyaanSummary.ForeColor = Color.FromArgb(52, 58, 64)
+        lblPertanyaanSummary.Text = "Memuat butir pertanyaan..."
+
+        Try
+            Dim items As List(Of PertanyaanAdminItem) = Await Task.Run(AddressOf DatabaseHelper.GetSemuaPertanyaanEdom)
+            RenderPertanyaan(items)
+            pnlPertanyaanForm.Enabled = True
+        Catch ex As Exception
+            dgvPertanyaan.Rows.Clear()
+            lblPertanyaanSummary.ForeColor = LowProgressColor
+            lblPertanyaanSummary.Text = DatabaseHelper.DescribeError(ex)
+        End Try
+    End Function
+
+    Private Sub RenderPertanyaan(items As List(Of PertanyaanAdminItem))
+        populatingGrids = True
+        dgvPertanyaan.Rows.Clear()
+
+        For Each item As PertanyaanAdminItem In items
+            Dim rowIndex As Integer = dgvPertanyaan.Rows.Add(
+                item.Nomor,
+                DatabaseHelper.JudulKompetensi(item.Kompetensi),
+                item.Pertanyaan,
+                If(item.Aktif, "Aktif", "Nonaktif"),
+                item.JumlahJawaban)
+
+            Dim row As DataGridViewRow = dgvPertanyaan.Rows(rowIndex)
+            row.Tag = item
+
+            If Not item.Aktif Then
+                row.DefaultCellStyle.ForeColor = MutedColor
+                row.DefaultCellStyle.SelectionForeColor = MutedColor
+            End If
+        Next
+
+        dgvPertanyaan.ClearSelection()
+        populatingGrids = False
+
+        Dim jumlahAktif As Integer = items.Where(Function(q) q.Aktif).Count()
+        Dim jumlahNonaktif As Integer = items.Count - jumlahAktif
+        Dim perKompetensi As String = String.Join(", ",
+            DatabaseHelper.DaftarKompetensi.Select(
+                Function(k) $"{k} {items.Where(Function(q) q.Aktif AndAlso q.Kompetensi = k).Count()}"))
+
+        lblPertanyaanSummary.ForeColor = Color.FromArgb(52, 58, 64)
+        lblPertanyaanSummary.Text =
+            $"{jumlahAktif} butir aktif ({perKompetensi})" &
+            If(jumlahNonaktif > 0, $"  ·  {jumlahNonaktif} nonaktif", "")
+
+        ClearPertanyaanForm()
+    End Sub
+
+    Private Sub dgvPertanyaan_SelectionChanged(
+        sender As Object,
+        e As EventArgs
+    ) Handles dgvPertanyaan.SelectionChanged
+
+        If populatingGrids Then Return
+
+        Dim item As PertanyaanAdminItem = Nothing
+        If dgvPertanyaan.SelectedRows.Count > 0 Then
+            item = TryCast(dgvPertanyaan.SelectedRows(0).Tag, PertanyaanAdminItem)
+        End If
+
+        If item Is Nothing Then
+            ClearPertanyaanForm()
+            Return
+        End If
+
+        selectedPertanyaan = item
+        cmbPKompetensi.SelectedItem =
+            cmbPKompetensi.Items.Cast(Of KompetensiOption)().FirstOrDefault(Function(o) o.Kode = item.Kompetensi)
+        txtPTeks.Text = item.Pertanyaan
+        chkPAktif.Checked = item.Aktif
+        btnPSimpan.Enabled = True
+        btnPHapus.Enabled = item.JumlahJawaban = 0
+
+        If item.JumlahJawaban > 0 Then
+            SetPesanPertanyaan(
+                $"Butir no. {item.Nomor} sudah dijawab {item.JumlahJawaban} kali, jadi tidak bisa dihapus. " &
+                "Hilangkan centang Aktif lalu Simpan untuk menyembunyikannya.", MutedColor)
+        Else
+            SetPesanPertanyaan("", MutedColor)
+        End If
+    End Sub
+
+    Private Async Sub btnPTambah_Click(sender As Object, e As EventArgs) Handles btnPTambah.Click
+        If Not ValidatePertanyaan() Then Return
+
+        Dim kompetensi As String = DirectCast(cmbPKompetensi.SelectedItem, KompetensiOption).Kode
+        Dim teks As String = txtPTeks.Text.Trim()
+        Dim aktif As Boolean = chkPAktif.Checked
+
+        Await RunPertanyaanActionAsync(
+            Sub() DatabaseHelper.AddPertanyaanEdom(kompetensi, teks, aktif),
+            "Butir pertanyaan baru berhasil ditambahkan.")
+    End Sub
+
+    Private Async Sub btnPSimpan_Click(sender As Object, e As EventArgs) Handles btnPSimpan.Click
+        If selectedPertanyaan Is Nothing OrElse Not ValidatePertanyaan() Then Return
+
+        Dim id As Integer = selectedPertanyaan.Id
+        Dim kompetensi As String = DirectCast(cmbPKompetensi.SelectedItem, KompetensiOption).Kode
+        Dim teks As String = txtPTeks.Text.Trim()
+        Dim aktif As Boolean = chkPAktif.Checked
+
+        ' Mengubah isi butir yang sudah dijawab akan mengubah arti jawaban lama, jadi minta konfirmasi.
+        If selectedPertanyaan.JumlahJawaban > 0 AndAlso
+           (teks <> selectedPertanyaan.Pertanyaan OrElse kompetensi <> selectedPertanyaan.Kompetensi) Then
+
+            Dim confirm As DialogResult = MessageBox.Show(
+                $"Butir ini sudah dijawab {selectedPertanyaan.JumlahJawaban} kali. Mengubah teks atau kompetensinya " &
+                "akan ikut mengubah arti jawaban yang sudah masuk." & Environment.NewLine & Environment.NewLine &
+                "Kalau isinya benar-benar berbeda, lebih baik nonaktifkan butir ini lalu tambah butir baru. Tetap simpan perubahan?",
+                "Ubah Butir yang Sudah Dijawab",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning)
+
+            If confirm <> DialogResult.Yes Then Return
+        End If
+
+        Await RunPertanyaanActionAsync(
+            Sub() DatabaseHelper.UpdatePertanyaanEdom(id, kompetensi, teks, aktif),
+            "Perubahan butir pertanyaan berhasil disimpan.")
+    End Sub
+
+    Private Async Sub btnPHapus_Click(sender As Object, e As EventArgs) Handles btnPHapus.Click
+        If selectedPertanyaan Is Nothing Then Return
+
+        Dim confirm As DialogResult = MessageBox.Show(
+            $"Hapus butir no. {selectedPertanyaan.Nomor}?" & Environment.NewLine & Environment.NewLine &
+            selectedPertanyaan.Pertanyaan,
+            "Hapus Butir Pertanyaan",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning)
+
+        If confirm <> DialogResult.Yes Then Return
+
+        Dim id As Integer = selectedPertanyaan.Id
+        Await RunPertanyaanActionAsync(
+            Sub() DatabaseHelper.DeletePertanyaanEdom(id),
+            "Butir pertanyaan berhasil dihapus.")
+    End Sub
+
+    Private Sub btnPKosongkan_Click(sender As Object, e As EventArgs) Handles btnPKosongkan.Click
+        populatingGrids = True
+        dgvPertanyaan.ClearSelection()
+        populatingGrids = False
+        ClearPertanyaanForm()
+        txtPTeks.Focus()
+    End Sub
+
+    Private Function ValidatePertanyaan() As Boolean
+        If cmbPKompetensi.SelectedItem Is Nothing Then
+            SetPesanPertanyaan("Pilih kompetensi untuk butir ini.", LowProgressColor)
+            cmbPKompetensi.Focus()
+            Return False
+        End If
+
+        If txtPTeks.Text.Trim().Length = 0 Then
+            SetPesanPertanyaan("Teks pertanyaan belum diisi.", LowProgressColor)
+            txtPTeks.Focus()
+            Return False
+        End If
+
+        SetPesanPertanyaan("", MutedColor)
+        Return True
+    End Function
+
+    Private Async Function RunPertanyaanActionAsync(action As Action, pesanSukses As String) As Task
+        pnlPertanyaanForm.Enabled = False
+        SetPesanPertanyaan("", MutedColor)
+
+        Try
+            Await Task.Run(action)
+            Await LoadPertanyaanAsync()
+            SetPesanPertanyaan(pesanSukses, SuccessColor)
+        Catch ex As ArgumentException
+            SetPesanPertanyaan(ex.Message, LowProgressColor)
+        Catch ex As InvalidOperationException
+            SetPesanPertanyaan(ex.Message, LowProgressColor)
+        Catch ex As Exception
+            SetPesanPertanyaan(DatabaseHelper.DescribeError(ex), LowProgressColor)
+        Finally
+            pnlPertanyaanForm.Enabled = True
+        End Try
+    End Function
+
+    Private Sub SetPesanPertanyaan(pesan As String, warna As Color)
+        lblPPesan.ForeColor = warna
+        lblPPesan.Text = pesan
+    End Sub
+
+    Private Sub ClearPertanyaanForm()
+        selectedPertanyaan = Nothing
+        cmbPKompetensi.SelectedIndex = -1
+        txtPTeks.Clear()
+        chkPAktif.Checked = True
+        SetPesanPertanyaan("", MutedColor)
+        btnPSimpan.Enabled = False
+        btnPHapus.Enabled = False
+    End Sub
+
+    Private Class KompetensiOption
+        Public ReadOnly Property Kode As String
+
+        Public Sub New(kode As String)
+            Me.Kode = kode
+        End Sub
+
+        Public Overrides Function ToString() As String
+            Return DatabaseHelper.JudulKompetensi(Kode)
+        End Function
+    End Class
 
     ' ---------- Shared ----------
 

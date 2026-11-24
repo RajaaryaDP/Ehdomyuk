@@ -64,7 +64,7 @@ Public Class FormRincianButir
         If totalJawaban = 0 Then
             lblRingkasan.Text = "Belum ada jawaban per butir untuk cakupan ini."
             TampilkanKosong(
-                "Nilai per butir akan muncul setelah mahasiswa mengisi formulir EDOM 27 butir." & Environment.NewLine &
+                "Nilai per butir akan muncul setelah mahasiswa mengisi formulir EDOM per butir." & Environment.NewLine &
                 "Pengisian lama hanya menyimpan skor per kompetensi, jadi hanya tampil di kartu Indeks Kinerja.", isError:=False)
             Return
         End If
