@@ -102,7 +102,7 @@ Partial Class Form1
         lblBrand.Name = "lblBrand"
         lblBrand.Size = New Size(238, 58)
         lblBrand.TabIndex = 0
-        lblBrand.Text = "SIAKAD"
+        lblBrand.Text = "EDOM"
         ' 
         ' lblBrandSub
         ' 
@@ -113,7 +113,7 @@ Partial Class Form1
         lblBrandSub.Name = "lblBrandSub"
         lblBrandSub.Size = New Size(238, 25)
         lblBrandSub.TabIndex = 1
-        lblBrandSub.Text = "Sistem Informasi Akademik"
+        lblBrandSub.Text = "Evaluasi Dosen oleh Mahasiswa"
         ' 
         ' lblScaleTitle
         ' 
@@ -376,7 +376,7 @@ Partial Class Form1
         btnLogin.Name = "btnLogin"
         btnLogin.Size = New Size(457, 61)
         btnLogin.TabIndex = 4
-        btnLogin.Text = "Masuk ke SIAKAD"
+        btnLogin.Text = "Masuk ke EDOM"
         btnLogin.UseVisualStyleBackColor = False
         ' 
         ' Form1
@@ -393,7 +393,7 @@ Partial Class Form1
         MaximizeBox = False
         Name = "Form1"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "SIAKAD - Login"
+        Text = "EDOM - Login"
         pnlLeft.ResumeLayout(False)
         pnlLeft.PerformLayout()
         pnlLogin.ResumeLayout(False)

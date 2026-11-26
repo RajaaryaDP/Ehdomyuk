@@ -118,7 +118,7 @@ Partial Class pengisianEdom
         lblBrandSubtitle.Name = "lblBrandSubtitle"
         lblBrandSubtitle.Size = New Size(189, 20)
         lblBrandSubtitle.TabIndex = 1
-        lblBrandSubtitle.Text = "Sistem Informasi Akademik"
+        lblBrandSubtitle.Text = "Evaluasi Dosen oleh Mahasiswa"
         ' 
         ' lblBrand
         ' 
@@ -129,7 +129,7 @@ Partial Class pengisianEdom
         lblBrand.Name = "lblBrand"
         lblBrand.Size = New Size(158, 50)
         lblBrand.TabIndex = 0
-        lblBrand.Text = "SIAKAD"
+        lblBrand.Text = "EDOM"
         ' 
         ' content
         ' 
@@ -229,7 +229,7 @@ Partial Class pengisianEdom
         lblListSubtitle.Name = "lblListSubtitle"
         lblListSubtitle.Size = New Size(620, 23)
         lblListSubtitle.TabIndex = 10
-        lblListSubtitle.Text = "Pilih dosen dan mata kuliah di bawah ini untuk mengisi instrumen evaluasi dosen (EDOM)."
+        lblListSubtitle.Text = "Kelola dan isi evaluasi dosen berdasarkan mata kuliah yang kamu ikuti."
         ' 
         ' lblListTitle
         ' 
@@ -240,7 +240,7 @@ Partial Class pengisianEdom
         lblListTitle.Name = "lblListTitle"
         lblListTitle.Size = New Size(458, 37)
         lblListTitle.TabIndex = 9
-        lblListTitle.Text = "Daftar Dosen yang Ingin Dievaluasi"
+        lblListTitle.Text = "Pengisian Evaluasi Dosen"
         ' 
         ' pengisianEdom
         ' 

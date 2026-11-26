@@ -21,6 +21,39 @@ Public Class Dashboard
         e As EventArgs
     ) Handles MyBase.Load
 
+        For Each card As Panel In {
+    cardIpk,
+    cardSemester,
+    cardCourse
+}
+            AddHandler card.Paint,
+    Sub(paintSender As Object, paintArgs As PaintEventArgs)
+        Using borderPen As New Pen(Color.FromArgb(190, 205, 198), 2)
+            paintArgs.Graphics.DrawRectangle(
+                borderPen,
+                0,
+                0,
+                card.Width - 1,
+                card.Height - 1
+            )
+        End Using
+    End Sub
+        Next
+
+        lblAnnouncement.BorderStyle = BorderStyle.FixedSingle
+        lblAnnouncement.Padding = New Padding(12)
+
+        ' Tampilan tabel evaluasi
+        dgvSchedule.RowTemplate.Height = 38
+        dgvSchedule.ColumnHeadersHeight = 40
+        dgvSchedule.RowHeadersVisible = False
+        dgvSchedule.BorderStyle = BorderStyle.None
+        dgvSchedule.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+        dgvSchedule.GridColor = Color.FromArgb(230, 234, 230)
+
+        dgvSchedule.AlternatingRowsDefaultCellStyle.BackColor =
+    Color.FromArgb(248, 250, 248)
+
         If String.IsNullOrWhiteSpace(Username) Then
             Username = "Mahasiswa"
         End If
@@ -31,61 +64,41 @@ Public Class Dashboard
         dgvSchedule.Rows.Clear()
 
         Try
-            Dim profil As UserProfilItem = Await Task.Run(Function() DatabaseHelper.GetUserProfil(Username))
-            Dim displayName As String = If(String.IsNullOrWhiteSpace(profil.Nama), Username, profil.Nama)
-            lblWelcome.Text = $"Selamat datang, {displayName}"
-            lblInfo.Text = $"NIM: {Username}  |  Kelas: {profil.Kelas}  |  Ringkasan akademik dan jadwal perkuliahan semester aktif"
+            Dim profil As UserProfilItem =
+        Await Task.Run(Function() DatabaseHelper.GetUserProfil(Username))
 
-            Dim courses As List(Of MataKuliahItem) = Await Task.Run(Function() DatabaseHelper.GetMataKuliah(profil.Kelas))
-            If courses IsNot Nothing AndAlso courses.Count > 0 Then
-                Dim defaultTimes() As String = {
-                    "08:00 - 09:40", "10:00 - 11:40", "13:00 - 14:40", "15:00 - 16:40", "16:40 - 18:20"
-                }
-                Dim idx As Integer = 0
-                For Each c In courses
-                    Dim timeStr As String = defaultTimes(idx Mod defaultTimes.Length)
-                    dgvSchedule.Rows.Add(
-                        timeStr,
-                        c.Nama,
-                        c.DosenNama,
-                        If(String.IsNullOrWhiteSpace(c.Ruang), "-", c.Ruang)
-                    )
-                    idx += 1
-                Next
-                lblCourseValue.Text = courses.Count.ToString()
-            Else
-                LoadFallbackSchedule()
-            End If
-        Catch
-            LoadFallbackSchedule()
+            Dim displayName As String =
+        If(String.IsNullOrWhiteSpace(profil.Nama), Username, profil.Nama)
+
+            lblWelcome.Text = $"Selamat datang, {displayName}"
+
+            lblInfo.Text =
+        $"NIM: {Username}  |  Kelas: {profil.Kelas}  |  Ringkasan evaluasi dosen"
+
+            Await LoadEdomDashboardAsync()
+
+        Catch ex As Exception
+            dgvSchedule.Rows.Clear()
+
+            lblIpkValue.Text = "—"
+            lblSemesterValue.Text = "—"
+            lblCourseValue.Text = "—"
+
+            MessageBox.Show(
+        "Gagal memuat dashboard: " & ex.Message,
+        "Informasi",
+        MessageBoxButtons.OK,
+        MessageBoxIcon.Warning
+    )
         End Try
+
+        dgvSchedule.ClearSelection()
 
         dgvSchedule.ClearSelection()
     End Sub
 
     Private Sub LoadFallbackSchedule()
         dgvSchedule.Rows.Clear()
-
-        dgvSchedule.Rows.Add(
-            "08:00 - 09:40",
-            "Pemrograman Web Lanjut",
-            "Asep Taufik, M.Kom.",
-            "AA 301"
-        )
-
-        dgvSchedule.Rows.Add(
-            "10:00 - 11:40",
-            "Pemrograman Basis Data",
-            "Risna Sari, M.Kom.",
-            "GSG 204"
-        )
-
-        dgvSchedule.Rows.Add(
-            "13:00 - 14:40",
-            "Analisis Sistem",
-            "Bagus Wijaya, M.Kom.",
-            "PUT 301"
-        )
     End Sub
 
     Public Sub SetActiveMenuButton(activeButton As Button)
@@ -161,6 +174,68 @@ Public Class Dashboard
         If Not loggingOut AndAlso Not navigating Then
             Application.Exit()
         End If
+    End Sub
+
+    Private Async Function LoadEdomDashboardAsync() As Task
+        Dim items As List(Of EdomMahasiswaItem) =
+            Await Task.Run(Function() DatabaseHelper.GetEdomMahasiswa(Username))
+
+        dgvSchedule.Rows.Clear()
+
+        Dim totalTersedia As Integer = 0
+        Dim totalSudahDiisi As Integer = 0
+        Dim totalBelumDiisi As Integer = 0
+
+        For Each item As EdomMahasiswaItem In items
+
+            If Not item.MataKuliahId.HasValue Then
+                Continue For
+            End If
+
+            totalTersedia += 1
+
+            If item.SudahDievaluasi Then
+                totalSudahDiisi += 1
+            Else
+                totalBelumDiisi += 1
+
+                Dim rowIndex As Integer = dgvSchedule.Rows.Add(
+                    item.DosenNama,
+                    item.MataKuliahNama,
+                    "Belum Dievaluasi",
+                    "Isi Evaluasi"
+                )
+
+                dgvSchedule.Rows(rowIndex).Tag = item
+            End If
+
+        Next
+
+        lblIpkValue.Text = totalTersedia.ToString()
+        lblSemesterValue.Text = totalSudahDiisi.ToString()
+        lblCourseValue.Text = totalBelumDiisi.ToString()
+
+        dgvSchedule.ClearSelection()
+    End Function
+
+    Private Async Sub dgvSchedule_CellClick(
+    sender As Object,
+    e As DataGridViewCellEventArgs
+) Handles dgvSchedule.CellClick
+
+        If e.RowIndex < 0 OrElse e.ColumnIndex <> 3 Then Return
+
+        Dim item As EdomMahasiswaItem =
+            TryCast(dgvSchedule.Rows(e.RowIndex).Tag, EdomMahasiswaItem)
+
+        If item Is Nothing Then Return
+
+        Using dlg As New FormEvaluasiEdom(Username, item)
+            If dlg.ShowDialog(Me) = DialogResult.OK Then
+                Await LoadEdomDashboardAsync()
+            End If
+        End Using
+
     End Sub
 
 End Class

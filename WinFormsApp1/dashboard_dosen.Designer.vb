@@ -227,7 +227,7 @@ Partial Class dashboard_dosen
         lblBrand.Name = "lblBrand"
         lblBrand.Size = New Size(158, 50)
         lblBrand.TabIndex = 0
-        lblBrand.Text = "SIAKAD"
+        lblBrand.Text = "EDOM"
         ' 
         ' lblBrandSubtitle
         ' 
@@ -238,7 +238,7 @@ Partial Class dashboard_dosen
         lblBrandSubtitle.Name = "lblBrandSubtitle"
         lblBrandSubtitle.Size = New Size(189, 20)
         lblBrandSubtitle.TabIndex = 1
-        lblBrandSubtitle.Text = "Sistem Informasi Akademik"
+        lblBrandSubtitle.Text = "Evaluasi Dosen oleh Mahasiswa"
         ' 
         ' lblRole
         ' 

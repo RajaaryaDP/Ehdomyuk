@@ -164,7 +164,7 @@ Public Class FormEvaluasiEdom
         Dim lebarIsi As Integer = lebar - (PaddingDalam * 2)
 
         Dim baris As New Panel With {
-            .BackColor = Color.White,
+            .BackColor = Color.FromArgb(250, 252, 250),
             .Width = lebar,
             .Margin = New Padding(0, 0, 0, 8),
             .Tag = p.Id

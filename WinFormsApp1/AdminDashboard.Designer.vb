@@ -231,7 +231,7 @@ Partial Class AdminDashboard
         lblBrandSubtitle.Name = "lblBrandSubtitle"
         lblBrandSubtitle.Size = New Size(189, 20)
         lblBrandSubtitle.TabIndex = 1
-        lblBrandSubtitle.Text = "Sistem Informasi Akademik"
+        lblBrandSubtitle.Text = "Evaluasi Dosen oleh Mahasiswa"
         ' 
         ' lblBrand
         ' 
@@ -242,7 +242,7 @@ Partial Class AdminDashboard
         lblBrand.Name = "lblBrand"
         lblBrand.Size = New Size(158, 50)
         lblBrand.TabIndex = 0
-        lblBrand.Text = "SIAKAD"
+        lblBrand.Text = "EDOM"
         ' 
         ' pnlProgres
         ' 
@@ -1119,7 +1119,7 @@ Partial Class AdminDashboard
         MinimumSize = New Size(1255, 918)
         Name = "AdminDashboard"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "SIAKAD - Dashboard Admin"
+        Text = "EDOM - Dashboard Admin"
         sidebar.ResumeLayout(False)
         sidebar.PerformLayout()
         pnlProgres.ResumeLayout(False)

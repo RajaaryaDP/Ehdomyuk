@@ -139,7 +139,7 @@ Partial Class Dashboard
         lblBrandSubtitle.Name = "lblBrandSubtitle"
         lblBrandSubtitle.Size = New Size(151, 15)
         lblBrandSubtitle.TabIndex = 1
-        lblBrandSubtitle.Text = "Sistem Informasi Akademik"
+        lblBrandSubtitle.Text = "Evaluasi Dosen oleh Mahasiswa"
         ' 
         ' lblBrand
         ' 
@@ -150,7 +150,7 @@ Partial Class Dashboard
         lblBrand.Name = "lblBrand"
         lblBrand.Size = New Size(128, 41)
         lblBrand.TabIndex = 0
-        lblBrand.Text = "SIAKAD"
+        lblBrand.Text = "EDOM"
         ' 
         ' header
         ' 
@@ -214,7 +214,7 @@ Partial Class Dashboard
         lblAnnouncement.Padding = New Padding(19, 14, 19, 14)
         lblAnnouncement.Size = New Size(872, 82)
         lblAnnouncement.TabIndex = 8
-        lblAnnouncement.Text = "• Batas akhir pengisian EDOM semester ini: 12 Januari 2026." & vbCrLf & "• Kartu Hasil Studi (Marksheet) dapat diunduh setelah seluruh evaluasi dosen selesai diisi."
+        lblAnnouncement.Text = "• Pastikan seluruh evaluasi dosen yang tersedia telah diisi." & vbCrLf & "• Hasil evaluasi digunakan sebagai bahan peningkatan kualitas pembelajaran."
         ' 
         ' lblAnnouncementTitle
         ' 
@@ -226,7 +226,7 @@ Partial Class Dashboard
         lblAnnouncementTitle.Padding = New Padding(0, 15, 0, 0)
         lblAnnouncementTitle.Size = New Size(872, 44)
         lblAnnouncementTitle.TabIndex = 7
-        lblAnnouncementTitle.Text = "Pengumuman Akademik"
+        lblAnnouncementTitle.Text = "Informasi Evaluasi"
         ' 
         ' dgvSchedule
         ' 
@@ -273,15 +273,15 @@ Partial Class Dashboard
         ' 
         ' colJam
         ' 
-        colJam.FillWeight = 20F
-        colJam.HeaderText = "Jam Perkuliahan"
+        colJam.FillWeight = 25.0F
+        colJam.HeaderText = "Nama Dosen"
         colJam.MinimumWidth = 6
         colJam.Name = "colJam"
         colJam.ReadOnly = True
         ' 
         ' colMataKuliah
         ' 
-        colMataKuliah.FillWeight = 34F
+        colMataKuliah.FillWeight = 25.0F
         colMataKuliah.HeaderText = "Mata Kuliah"
         colMataKuliah.MinimumWidth = 6
         colMataKuliah.Name = "colMataKuliah"
@@ -289,16 +289,16 @@ Partial Class Dashboard
         ' 
         ' colDosen
         ' 
-        colDosen.FillWeight = 30F
-        colDosen.HeaderText = "Dosen Pengampu"
+        colDosen.FillWeight = 25.0F
+        colDosen.HeaderText = "Status Evaluasi"
         colDosen.MinimumWidth = 6
         colDosen.Name = "colDosen"
         colDosen.ReadOnly = True
         ' 
         ' colRuangan
         ' 
-        colRuangan.FillWeight = 16F
-        colRuangan.HeaderText = "Ruangan"
+        colRuangan.FillWeight = 25.0F
+        colRuangan.HeaderText = "Aksi"
         colRuangan.MinimumWidth = 6
         colRuangan.Name = "colRuangan"
         colRuangan.ReadOnly = True
@@ -313,7 +313,7 @@ Partial Class Dashboard
         lblScheduleTitle.Padding = New Padding(0, 15, 0, 0)
         lblScheduleTitle.Size = New Size(872, 44)
         lblScheduleTitle.TabIndex = 5
-        lblScheduleTitle.Text = "Jadwal Kuliah Hari Ini"
+        lblScheduleTitle.Text = "Evaluasi yang Perlu Diisi"
         ' 
         ' pnlSummaryCards
         ' 
@@ -356,7 +356,7 @@ Partial Class Dashboard
         lblIpkNote.Name = "lblIpkNote"
         lblIpkNote.Size = New Size(153, 15)
         lblIpkNote.TabIndex = 2
-        lblIpkNote.Text = "Skala 4.00 semester berjalan"
+        lblIpkNote.Text = "Jumlah evaluasi yang tersedia"
         ' 
         ' lblIpkValue
         ' 
@@ -367,7 +367,7 @@ Partial Class Dashboard
         lblIpkValue.Name = "lblIpkValue"
         lblIpkValue.Size = New Size(77, 41)
         lblIpkValue.TabIndex = 1
-        lblIpkValue.Text = "3.75"
+        lblIpkValue.Text = "-"
         ' 
         ' lblIpkTitle
         ' 
@@ -378,7 +378,7 @@ Partial Class Dashboard
         lblIpkTitle.Name = "lblIpkTitle"
         lblIpkTitle.Size = New Size(90, 17)
         lblIpkTitle.TabIndex = 0
-        lblIpkTitle.Text = "IPK Kumulatif"
+        lblIpkTitle.Text = "Evaluasi Tersedia"
         ' 
         ' cardSemester
         ' 
@@ -402,7 +402,7 @@ Partial Class Dashboard
         lblSemesterNote.Name = "lblSemesterNote"
         lblSemesterNote.Size = New Size(152, 15)
         lblSemesterNote.TabIndex = 2
-        lblSemesterNote.Text = "Tahun Akademik 2025/2026"
+        lblSemesterNote.Text = "Jumlah evaluasi yang sudah dikirim"
         ' 
         ' lblSemesterValue
         ' 
@@ -413,7 +413,7 @@ Partial Class Dashboard
         lblSemesterValue.Name = "lblSemesterValue"
         lblSemesterValue.Size = New Size(35, 41)
         lblSemesterValue.TabIndex = 1
-        lblSemesterValue.Text = "6"
+        lblSemesterValue.Text = "-"
         ' 
         ' lblSemesterTitle
         ' 
@@ -424,7 +424,7 @@ Partial Class Dashboard
         lblSemesterTitle.Name = "lblSemesterTitle"
         lblSemesterTitle.Size = New Size(96, 17)
         lblSemesterTitle.TabIndex = 0
-        lblSemesterTitle.Text = "Semester Aktif"
+        lblSemesterTitle.Text = "Sudah Diisi"
         ' 
         ' cardCourse
         ' 
@@ -448,7 +448,7 @@ Partial Class Dashboard
         lblCourseNote.Name = "lblCourseNote"
         lblCourseNote.Size = New Size(159, 15)
         lblCourseNote.TabIndex = 2
-        lblCourseNote.Text = "Diambil pada KRS semester 6"
+        lblCourseNote.Text = "Jumlah evaluasi yang belum dikirim"
         ' 
         ' lblCourseValue
         ' 
@@ -459,7 +459,7 @@ Partial Class Dashboard
         lblCourseValue.Name = "lblCourseValue"
         lblCourseValue.Size = New Size(35, 41)
         lblCourseValue.TabIndex = 1
-        lblCourseValue.Text = "8"
+        lblCourseValue.Text = "-"
         ' 
         ' lblCourseTitle
         ' 
@@ -470,7 +470,7 @@ Partial Class Dashboard
         lblCourseTitle.Name = "lblCourseTitle"
         lblCourseTitle.Size = New Size(80, 17)
         lblCourseTitle.TabIndex = 0
-        lblCourseTitle.Text = "Mata Kuliah"
+        lblCourseTitle.Text = "Belum Diisi"
         ' 
         ' lblSummaryTitle
         ' 
@@ -482,7 +482,7 @@ Partial Class Dashboard
         lblSummaryTitle.Padding = New Padding(0, 3, 0, 0)
         lblSummaryTitle.Size = New Size(872, 34)
         lblSummaryTitle.TabIndex = 0
-        lblSummaryTitle.Text = "Ringkasan Akademik"
+        lblSummaryTitle.Text = "Ringkasan Evaluasi"
         ' 
         ' Dashboard
         ' 
@@ -495,7 +495,7 @@ Partial Class Dashboard
         MinimumSize = New Size(1100, 548)
         Name = "Dashboard"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "SIAKAD - Dashboard Akademik"
+        Text = "EDOM - Dashboard"
         sidebar.ResumeLayout(False)
         sidebar.PerformLayout()
         header.ResumeLayout(False)

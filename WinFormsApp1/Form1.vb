@@ -175,7 +175,7 @@ Public Class Form1
 
     Private Sub SetBusy(busy As Boolean)
         btnLogin.Enabled = Not busy
-        btnLogin.Text = If(busy, "Memeriksa akun...", "Masuk ke SIAKAD")
+        btnLogin.Text = If(busy, "Memeriksa akun...", "Masuk ke EDOM")
         btnLogin.BackColor = If(busy, Color.FromArgb(92, 112, 105), Color.FromArgb(30, 59, 51))
         txtNim.ReadOnly = busy
         txtPassword.ReadOnly = busy

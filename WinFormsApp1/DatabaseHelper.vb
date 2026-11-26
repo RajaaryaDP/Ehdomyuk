@@ -266,6 +266,13 @@ Public Module DatabaseHelper
     Public Const KompetensiKepribadian As String = "kepribadian"
     Public Const KompetensiSosial As String = "sosial"
 
+    Public ReadOnly DaftarKompetensi As String() = {
+    KompetensiPedagogik,
+    KompetensiProfesional,
+    KompetensiKepribadian,
+    KompetensiSosial
+}
+
     ' Butir sesuai INSTRUMEN EDOM 2023 (skala 1-5).
     Private ReadOnly InstrumenEdom2023 As (Nomor As Integer, Kompetensi As String, Pertanyaan As String)() = {
         (1, KompetensiPedagogik, "Kesiapan memberikan kuliah dan/atau praktek/praktikum"),
@@ -1601,278 +1608,6 @@ Public Module DatabaseHelper
         Return items
     End Function
 
-    ' ---------- Admin: Kelola Butir Pertanyaan ----------
-
-    ' Kompetensi dibatasi 4 karena keempatnya menjadi input perhitungan Fuzzy Tsukamoto (edom.py).
-    Public ReadOnly DaftarKompetensi As String() = {
-        KompetensiPedagogik, KompetensiProfesional, KompetensiKepribadian, KompetensiSosial
-    }
-
-    Private Function UrutanKompetensi(kompetensi As String) As Integer
-        Dim idx As Integer = Array.IndexOf(DaftarKompetensi, If(kompetensi, "").Trim().ToLowerInvariant())
-        Return If(idx < 0, DaftarKompetensi.Length, idx)
-    End Function
-
-    Private Function NormalisasiKompetensi(kompetensi As String) As String
-        Dim k As String = If(kompetensi, "").Trim().ToLowerInvariant()
-        If Not DaftarKompetensi.Contains(k) Then
-            Throw New ArgumentException("Pilih salah satu dari 4 kompetensi (pedagogik, profesional, kepribadian, sosial).")
-        End If
-        Return k
-    End Function
-
-    Private Function ValidasiTeksPertanyaan(pertanyaan As String) As String
-        Dim teks As String = If(pertanyaan, "").Trim()
-        If teks.Length = 0 Then
-            Throw New ArgumentException("Teks pertanyaan belum diisi.")
-        End If
-        If teks.Length > 255 Then
-            Throw New ArgumentException($"Teks pertanyaan maksimal 255 karakter (sekarang {teks.Length}).")
-        End If
-        Return teks
-    End Function
-
-    ' Semua butir (aktif & nonaktif) beserta jumlah jawaban yang sudah masuk, untuk halaman admin.
-    Public Function GetSemuaPertanyaanEdom() As List(Of PertanyaanAdminItem)
-        Const query As String =
-            "SELECT q.id, q.nomor, q.kompetensi, q.pertanyaan, q.aktif, " &
-            "  (SELECT COUNT(*) FROM edom_jawaban j WHERE j.pertanyaan_id = q.id) AS jumlah_jawaban " &
-            "FROM edom_pertanyaan q " &
-            "ORDER BY q.aktif DESC, q.nomor"
-
-        Dim items As New List(Of PertanyaanAdminItem)
-
-        Using connection As New MySqlConnection(ConnectionString)
-            connection.Open()
-            EnsureSchema(connection)
-
-            Using command As New MySqlCommand(query, connection)
-                Using reader As MySqlDataReader = command.ExecuteReader()
-                    While reader.Read()
-                        items.Add(New PertanyaanAdminItem With {
-                            .Id = Convert.ToInt32(reader("id")),
-                            .Nomor = Convert.ToInt32(reader("nomor")),
-                            .Kompetensi = reader.GetString("kompetensi").Trim().ToLowerInvariant(),
-                            .Pertanyaan = reader.GetString("pertanyaan"),
-                            .Aktif = Convert.ToInt32(reader("aktif")) <> 0,
-                            .JumlahJawaban = Convert.ToInt32(reader("jumlah_jawaban"))
-                        })
-                    End While
-                End Using
-            End Using
-        End Using
-
-        Return items
-    End Function
-
-    ' Butir baru ditaruh di akhir kelompok kompetensinya, lalu seluruh nomor dirapikan ulang.
-    Public Sub AddPertanyaanEdom(kompetensi As String, pertanyaan As String, aktif As Boolean)
-        Dim k As String = NormalisasiKompetensi(kompetensi)
-        Dim teks As String = ValidasiTeksPertanyaan(pertanyaan)
-
-        Using connection As New MySqlConnection(ConnectionString)
-            connection.Open()
-            EnsureSchema(connection)
-
-            Using tx As MySqlTransaction = connection.BeginTransaction()
-                Try
-                    CekPertanyaanDuplikat(connection, tx, teks, Nothing)
-
-                    Dim nomorSementara As Integer = AmbilNomorTerakhir(connection, tx) + 1
-                    Using cmd As New MySqlCommand(
-                        "INSERT INTO edom_pertanyaan (nomor, kompetensi, pertanyaan, aktif) VALUES (@n, @k, @p, @a)",
-                        connection, tx)
-                        cmd.Parameters.AddWithValue("@n", nomorSementara)
-                        cmd.Parameters.AddWithValue("@k", k)
-                        cmd.Parameters.AddWithValue("@p", teks)
-                        cmd.Parameters.AddWithValue("@a", If(aktif, 1, 0))
-                        cmd.ExecuteNonQuery()
-                    End Using
-
-                    UrutkanUlangNomorPertanyaan(connection, tx)
-                    tx.Commit()
-                Catch
-                    tx.Rollback()
-                    Throw
-                End Try
-            End Using
-        End Using
-    End Sub
-
-    Public Sub UpdatePertanyaanEdom(id As Integer, kompetensi As String, pertanyaan As String, aktif As Boolean)
-        Dim k As String = NormalisasiKompetensi(kompetensi)
-        Dim teks As String = ValidasiTeksPertanyaan(pertanyaan)
-
-        Using connection As New MySqlConnection(ConnectionString)
-            connection.Open()
-            EnsureSchema(connection)
-
-            Using tx As MySqlTransaction = connection.BeginTransaction()
-                Try
-                    Dim lama = AmbilPertanyaan(connection, tx, id)
-                    CekPertanyaanDuplikat(connection, tx, teks, id)
-
-                    Dim pindahKompetensi As Boolean = lama.Kompetensi <> k
-                    If lama.Aktif AndAlso (Not aktif OrElse pindahKompetensi) Then
-                        CekMasihAdaButirAktif(connection, tx, lama.Kompetensi, id)
-                    End If
-
-                    ' Pindah kompetensi (atau diaktifkan lagi) -> taruh di akhir kelompok barunya.
-                    Dim nomorBaru As Integer = lama.Nomor
-                    If pindahKompetensi OrElse (aktif AndAlso Not lama.Aktif) Then
-                        nomorBaru = AmbilNomorTerakhir(connection, tx) + 1
-                    End If
-
-                    Using cmd As New MySqlCommand(
-                        "UPDATE edom_pertanyaan SET nomor = @n, kompetensi = @k, pertanyaan = @p, aktif = @a WHERE id = @id",
-                        connection, tx)
-                        cmd.Parameters.AddWithValue("@n", nomorBaru)
-                        cmd.Parameters.AddWithValue("@k", k)
-                        cmd.Parameters.AddWithValue("@p", teks)
-                        cmd.Parameters.AddWithValue("@a", If(aktif, 1, 0))
-                        cmd.Parameters.AddWithValue("@id", id)
-                        cmd.ExecuteNonQuery()
-                    End Using
-
-                    UrutkanUlangNomorPertanyaan(connection, tx)
-                    tx.Commit()
-                Catch
-                    tx.Rollback()
-                    Throw
-                End Try
-            End Using
-        End Using
-    End Sub
-
-    ' Butir yang sudah pernah dijawab tidak dihapus supaya data jawaban mahasiswa tidak hilang; cukup dinonaktifkan.
-    Public Sub DeletePertanyaanEdom(id As Integer)
-        Using connection As New MySqlConnection(ConnectionString)
-            connection.Open()
-            EnsureSchema(connection)
-
-            Using tx As MySqlTransaction = connection.BeginTransaction()
-                Try
-                    Dim lama = AmbilPertanyaan(connection, tx, id)
-
-                    Dim jumlahJawaban As Integer
-                    Using cmd As New MySqlCommand("SELECT COUNT(*) FROM edom_jawaban WHERE pertanyaan_id = @id", connection, tx)
-                        cmd.Parameters.AddWithValue("@id", id)
-                        jumlahJawaban = Convert.ToInt32(cmd.ExecuteScalar())
-                    End Using
-
-                    If jumlahJawaban > 0 Then
-                        Throw New InvalidOperationException(
-                            $"Butir ini sudah dijawab {jumlahJawaban} kali, jadi tidak bisa dihapus. " &
-                            "Hilangkan centang Aktif lalu klik Simpan agar tidak muncul lagi di formulir mahasiswa.")
-                    End If
-
-                    If lama.Aktif Then
-                        CekMasihAdaButirAktif(connection, tx, lama.Kompetensi, id)
-                    End If
-
-                    Using cmd As New MySqlCommand("DELETE FROM edom_pertanyaan WHERE id = @id", connection, tx)
-                        cmd.Parameters.AddWithValue("@id", id)
-                        cmd.ExecuteNonQuery()
-                    End Using
-
-                    UrutkanUlangNomorPertanyaan(connection, tx)
-                    tx.Commit()
-                Catch
-                    tx.Rollback()
-                    Throw
-                End Try
-            End Using
-        End Using
-    End Sub
-
-    Private Function AmbilPertanyaan(connection As MySqlConnection, tx As MySqlTransaction, id As Integer) _
-        As (Nomor As Integer, Kompetensi As String, Aktif As Boolean)
-
-        Using cmd As New MySqlCommand("SELECT nomor, kompetensi, aktif FROM edom_pertanyaan WHERE id = @id", connection, tx)
-            cmd.Parameters.AddWithValue("@id", id)
-            Using reader As MySqlDataReader = cmd.ExecuteReader()
-                If Not reader.Read() Then
-                    Throw New InvalidOperationException("Butir pertanyaan ini sudah tidak ada di database. Muat ulang halaman.")
-                End If
-                Return (Convert.ToInt32(reader("nomor")),
-                        reader.GetString("kompetensi").Trim().ToLowerInvariant(),
-                        Convert.ToInt32(reader("aktif")) <> 0)
-            End Using
-        End Using
-    End Function
-
-    Private Function AmbilNomorTerakhir(connection As MySqlConnection, tx As MySqlTransaction) As Integer
-        Using cmd As New MySqlCommand("SELECT COALESCE(MAX(nomor), 0) FROM edom_pertanyaan", connection, tx)
-            Return Convert.ToInt32(cmd.ExecuteScalar())
-        End Using
-    End Function
-
-    Private Sub CekPertanyaanDuplikat(connection As MySqlConnection, tx As MySqlTransaction, teks As String, kecualiId As Integer?)
-        Using cmd As New MySqlCommand(
-            "SELECT COUNT(*) FROM edom_pertanyaan WHERE LOWER(TRIM(pertanyaan)) = LOWER(@p) AND id <> @id",
-            connection, tx)
-            cmd.Parameters.AddWithValue("@p", teks)
-            cmd.Parameters.AddWithValue("@id", If(kecualiId, 0))
-            If Convert.ToInt32(cmd.ExecuteScalar()) > 0 Then
-                Throw New ArgumentException("Pertanyaan dengan teks yang sama sudah ada.")
-            End If
-        End Using
-    End Sub
-
-    ' Setiap kompetensi wajib punya minimal 1 butir aktif; kalau kosong, skornya tidak bisa dihitung
-    ' dan Fuzzy Tsukamoto akan menganggap dosen "Belum Ada Nilai".
-    Private Sub CekMasihAdaButirAktif(connection As MySqlConnection, tx As MySqlTransaction, kompetensi As String, kecualiId As Integer)
-        Using cmd As New MySqlCommand(
-            "SELECT COUNT(*) FROM edom_pertanyaan WHERE aktif = 1 AND LOWER(TRIM(kompetensi)) = @k AND id <> @id",
-            connection, tx)
-            cmd.Parameters.AddWithValue("@k", kompetensi)
-            cmd.Parameters.AddWithValue("@id", kecualiId)
-            If Convert.ToInt32(cmd.ExecuteScalar()) = 0 Then
-                Throw New InvalidOperationException(
-                    $"{JudulKompetensi(kompetensi)} minimal harus punya 1 butir aktif, " &
-                    "karena skornya dipakai dalam perhitungan Fuzzy Tsukamoto.")
-            End If
-        End Using
-    End Sub
-
-    ' Nomor dirapikan jadi 1..N: butir aktif dulu (dikelompokkan per kompetensi A-D), lalu butir nonaktif.
-    ' Dengan begitu formulir mahasiswa selalu bernomor urut tanpa loncat.
-    Private Sub UrutkanUlangNomorPertanyaan(connection As MySqlConnection, tx As MySqlTransaction)
-        Dim daftar As New List(Of (Id As Integer, Nomor As Integer, Kompetensi As String, Aktif As Boolean))
-
-        Using cmd As New MySqlCommand("SELECT id, nomor, kompetensi, aktif FROM edom_pertanyaan", connection, tx)
-            Using reader As MySqlDataReader = cmd.ExecuteReader()
-                While reader.Read()
-                    daftar.Add((Convert.ToInt32(reader("id")),
-                                Convert.ToInt32(reader("nomor")),
-                                reader.GetString("kompetensi"),
-                                Convert.ToInt32(reader("aktif")) <> 0))
-                End While
-            End Using
-        End Using
-
-        Dim urut = daftar.
-            OrderByDescending(Function(q) q.Aktif).
-            ThenBy(Function(q) UrutanKompetensi(q.Kompetensi)).
-            ThenBy(Function(q) q.Nomor).
-            ToList()
-
-        ' Dibuat negatif dulu supaya tidak bentrok dengan UNIQUE KEY nomor saat diisi ulang.
-        Using cmd As New MySqlCommand("UPDATE edom_pertanyaan SET nomor = -nomor WHERE nomor > 0", connection, tx)
-            cmd.ExecuteNonQuery()
-        End Using
-
-        Using cmd As New MySqlCommand("UPDATE edom_pertanyaan SET nomor = @n WHERE id = @id", connection, tx)
-            cmd.Parameters.Add("@n", MySqlDbType.Int32)
-            cmd.Parameters.Add("@id", MySqlDbType.Int32)
-            For i As Integer = 0 To urut.Count - 1
-                cmd.Parameters("@n").Value = i + 1
-                cmd.Parameters("@id").Value = urut(i).Id
-                cmd.ExecuteNonQuery()
-            Next
-        End Using
-    End Sub
-
     ' ---------- Mahasiswa: Pengisian EDOM ----------
 
     Public Function GetEdomMahasiswa(username As String) As List(Of EdomMahasiswaItem)
@@ -1973,6 +1708,60 @@ Public Module DatabaseHelper
 
         Return items
     End Function
+    Public Function GetSemuaPertanyaanEdom() As List(Of PertanyaanAdminItem)
+        Const query As String =
+        "SELECT q.id, q.nomor, q.kompetensi, q.pertanyaan, q.aktif, " &
+        "(SELECT COUNT(*) FROM edom_jawaban j " &
+        "WHERE j.pertanyaan_id = q.id) AS jumlah_jawaban " &
+        "FROM edom_pertanyaan q " &
+        "ORDER BY q.nomor"
+
+        Dim items As New List(Of PertanyaanAdminItem)
+
+        Using connection As New MySqlConnection(ConnectionString)
+            connection.Open()
+            EnsureSchema(connection)
+
+            Using command As New MySqlCommand(query, connection)
+                Using reader As MySqlDataReader = command.ExecuteReader()
+                    While reader.Read()
+                        items.Add(New PertanyaanAdminItem With {
+                        .Id = Convert.ToInt32(reader("id")),
+                        .Nomor = Convert.ToInt32(reader("nomor")),
+                        .Kompetensi = reader.GetString("kompetensi"),
+                        .Pertanyaan = reader.GetString("pertanyaan"),
+                        .Aktif = Convert.ToBoolean(reader("aktif")),
+                        .JumlahJawaban = Convert.ToInt32(reader("jumlah_jawaban"))
+                    })
+                    End While
+                End Using
+            End Using
+        End Using
+
+        Return items
+    End Function
+
+    Public Sub DeletePertanyaanEdom(id As Integer)
+        Const query As String =
+        "DELETE FROM edom_pertanyaan " &
+        "WHERE id = @id " &
+        "AND NOT EXISTS (" &
+        "SELECT 1 FROM edom_jawaban WHERE pertanyaan_id = @id)"
+
+        Using connection As New MySqlConnection(ConnectionString)
+            connection.Open()
+            EnsureSchema(connection)
+
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@id", id)
+
+                If command.ExecuteNonQuery() = 0 Then
+                    Throw New InvalidOperationException(
+                    "Pertanyaan tidak ditemukan atau sudah memiliki jawaban.")
+                End If
+            End Using
+        End Using
+    End Sub
 
     ' Jawaban mahasiswa sebelumnya untuk satu mata kuliah: pertanyaan_id -> nilai (1-5).
     Public Function GetJawabanEdom(username As String, mataKuliahId As Integer) As Dictionary(Of Integer, Integer)
@@ -2116,7 +1905,44 @@ Public Module DatabaseHelper
     End Function
 
     ' ---------- Helpers ----------
+    Public Sub AddPertanyaanEdom(kompetensi As String, teks As String, aktif As Boolean)
+        Const query As String =
+        "INSERT INTO edom_pertanyaan (nomor, kompetensi, pertanyaan, aktif) " &
+        "SELECT COALESCE(MAX(nomor), 0) + 1, @k, @p, @a " &
+        "FROM edom_pertanyaan"
 
+        Using connection As New MySqlConnection(ConnectionString)
+            connection.Open()
+            EnsureSchema(connection)
+
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@k", kompetensi)
+                command.Parameters.AddWithValue("@p", teks)
+                command.Parameters.AddWithValue("@a", aktif)
+                command.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
+
+    Public Sub UpdatePertanyaanEdom(id As Integer, kompetensi As String, teks As String, aktif As Boolean)
+        Const query As String =
+        "UPDATE edom_pertanyaan " &
+        "SET kompetensi = @k, pertanyaan = @p, aktif = @a " &
+        "WHERE id = @id"
+
+        Using connection As New MySqlConnection(ConnectionString)
+            connection.Open()
+            EnsureSchema(connection)
+
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@id", id)
+                command.Parameters.AddWithValue("@k", kompetensi)
+                command.Parameters.AddWithValue("@p", teks)
+                command.Parameters.AddWithValue("@a", aktif)
+                command.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
     Private Sub Execute(query As String, ParamArray parameters() As (Name As String, Value As Object))
         Using connection As New MySqlConnection(ConnectionString)
             connection.Open()

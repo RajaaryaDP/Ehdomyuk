@@ -69,24 +69,28 @@ Public Class pengisianEdom
         pnlCardContainer.ResumeLayout(True)
     End Sub
 
+
     Private Function CreateDosenCard(item As EdomMahasiswaItem, cardWidth As Integer) As Panel
         Dim card As New Panel With {
-            .BackColor = Color.White,
-            .Size = New Size(cardWidth, 110),
-            .Margin = New Padding(0, 0, 0, 16),
-            .Tag = item
-        }
+    .BackColor = Color.White,
+    .Size = New Size(cardWidth, 116),
+    .Margin = New Padding(0, 0, 0, 16),
+    .Tag = item,
+    .Padding = New Padding(1)
+}
 
         Dim nidnText As String = If(String.IsNullOrWhiteSpace(item.DosenNidn), "", $" ({item.DosenNidn})")
+
         Dim lblNama As New Label With {
-            .Text = $"{item.DosenNama}{nidnText}",
-            .Font = New Font("Segoe UI", 12.0F, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(30, 59, 51),
-            .Location = New Point(28, 22),
-            .AutoSize = True
-        }
+        .Text = $"{item.DosenNama}{nidnText}",
+        .Font = New Font("Segoe UI", 12.0F, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(30, 59, 51),
+        .Location = New Point(28, 20),
+        .AutoSize = True
+    }
 
         Dim matkulText As String
+
         If item.MataKuliahId.HasValue Then
             Dim ruangText As String = If(String.IsNullOrWhiteSpace(item.Ruang), "-", item.Ruang)
             matkulText = $"Mata Kuliah: {item.MataKuliahNama}  |  Ruang {ruangText}"
@@ -95,67 +99,98 @@ Public Class pengisianEdom
         End If
 
         Dim lblMatkul As New Label With {
-            .Text = matkulText,
-            .Font = New Font("Segoe UI", 9.5F),
-            .ForeColor = Color.FromArgb(108, 117, 125),
-            .Location = New Point(28, 58),
-            .AutoSize = True
-        }
+        .Text = matkulText,
+        .Font = New Font("Segoe UI", 9.5F),
+        .ForeColor = Color.FromArgb(108, 117, 125),
+        .Location = New Point(28, 55),
+        .AutoSize = True
+    }
 
         Dim btnEval As New Button With {
-            .Size = New Size(190, 48),
-            .FlatStyle = FlatStyle.Flat,
-            .Font = New Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
-            .Anchor = AnchorStyles.Top Or AnchorStyles.Right,
-            .Cursor = Cursors.Hand,
-            .Tag = item
-        }
+        .Size = New Size(190, 48),
+        .FlatStyle = FlatStyle.Flat,
+        .Font = New Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
+        .Anchor = AnchorStyles.Top Or AnchorStyles.Right,
+        .Cursor = Cursors.Hand,
+        .Tag = item
+    }
+
         btnEval.FlatAppearance.BorderSize = 0
 
         Dim lblStatus As New Label With {
-            .Font = New Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
-            .AutoSize = True,
-            .Anchor = AnchorStyles.Top Or AnchorStyles.Right
-        }
+        .Font = New Font("Segoe UI Semibold", 9.0F, FontStyle.Bold),
+        .Size = New Size(190, 30),
+        .TextAlign = ContentAlignment.MiddleCenter,
+        .Anchor = AnchorStyles.Top Or AnchorStyles.Right
+    }
 
         If Not item.MataKuliahId.HasValue Then
+
             lblStatus.Text = "Belum Ada Matkul"
+            lblStatus.BackColor = Color.FromArgb(240, 240, 240)
             lblStatus.ForeColor = Color.FromArgb(108, 117, 125)
+
             btnEval.Text = "Belum Ada Matkul"
             btnEval.BackColor = Color.FromArgb(236, 236, 236)
             btnEval.ForeColor = Color.FromArgb(140, 140, 140)
             btnEval.Enabled = False
             btnEval.Cursor = Cursors.Default
+
         ElseIf item.SudahDievaluasi Then
+
             lblStatus.Text = $"✓ Sudah Dievaluasi ({item.NilaiRataRata:0.00})"
+            lblStatus.BackColor = Color.FromArgb(220, 245, 230)
             lblStatus.ForeColor = Color.FromArgb(25, 135, 84)
+
             btnEval.Text = "Lihat / Ubah Evaluasi"
             btnEval.BackColor = Color.FromArgb(236, 241, 234)
             btnEval.ForeColor = Color.FromArgb(30, 59, 51)
             btnEval.FlatAppearance.MouseDownBackColor = Color.FromArgb(214, 226, 220)
             btnEval.FlatAppearance.MouseOverBackColor = Color.FromArgb(224, 234, 228)
+
             AddHandler btnEval.Click, AddressOf BtnEval_Click
+
         Else
+
             lblStatus.Text = "Belum Dievaluasi"
-            lblStatus.ForeColor = Color.FromArgb(220, 53, 69)
+            lblStatus.BackColor = Color.FromArgb(255, 243, 205)
+            lblStatus.ForeColor = Color.FromArgb(156, 101, 0)
+
             btnEval.Text = "Isi Evaluasi"
             btnEval.BackColor = Color.FromArgb(30, 59, 51)
             btnEval.ForeColor = Color.White
             btnEval.FlatAppearance.MouseDownBackColor = Color.FromArgb(114, 142, 109)
             btnEval.FlatAppearance.MouseOverBackColor = Color.FromArgb(46, 82, 72)
+
             AddHandler btnEval.Click, AddressOf BtnEval_Click
+
         End If
 
-        btnEval.Location = New Point(cardWidth - btnEval.Width - 28, 31)
-        lblStatus.Location = New Point(btnEval.Left - lblStatus.PreferredWidth - 25, 44)
+        btnEval.Location = New Point(cardWidth - btnEval.Width - 28, 34)
+        lblStatus.Location = New Point(btnEval.Left - lblStatus.Width - 20, 43)
 
         card.Controls.Add(lblNama)
         card.Controls.Add(lblMatkul)
         card.Controls.Add(lblStatus)
         card.Controls.Add(btnEval)
 
+
+        AddHandler card.Paint,
+    Sub(sender As Object, e As PaintEventArgs)
+        Using borderPen As New Pen(Color.FromArgb(225, 232, 228), 1)
+            e.Graphics.DrawRectangle(
+                borderPen,
+                0,
+                0,
+                card.Width - 1,
+                card.Height - 1
+            )
+        End Using
+    End Sub
+
         Return card
     End Function
+
 
     Private Async Sub BtnEval_Click(sender As Object, e As EventArgs)
         Dim btn As Button = DirectCast(sender, Button)
